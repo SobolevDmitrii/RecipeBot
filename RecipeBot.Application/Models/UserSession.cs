@@ -5,9 +5,9 @@ namespace RecipeBot.Application.Models;
 
 public class UserSession
 {
-    public States UserState { get; set; }
+    public UserStates UserState { get; set; }
 
-    public States RecipeState { get; set; }
+    public RecipeStates RecipeState { get; set; }
 
     public Recipe? RecipeDraft { get; set; }
 }

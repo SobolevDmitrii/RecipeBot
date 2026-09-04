@@ -1,15 +1,11 @@
 ﻿namespace RecipeBot.Domain.Enums;
 
-public enum States
+public enum RecipeStates
 {
-    Waiting,
-    Start,
-    AddingRecipe,
     WaitingForCategory,
     WaitingForRecipeName,
     WaitingForIngredients,
     AddingStage,
     WaitingMove,
     WaitingForImageRecipe
-    
 }

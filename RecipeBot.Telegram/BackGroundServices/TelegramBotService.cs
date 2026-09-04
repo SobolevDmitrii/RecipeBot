@@ -66,7 +66,7 @@ public class TelegramBotService(
             {
                 switch (session.UserState)
                 {
-                  case States.Waiting:
+                  case UserStates.Waiting:
                       await bot.DeleteMessage(chatId, update.Message.MessageId, cancellationToken: cancellationToken);
                       await bot.SendMessage(
                           chatId,
@@ -74,7 +74,7 @@ public class TelegramBotService(
                           cancellationToken: cancellationToken
                       );
                       break;
-                  case States.AddingRecipe:
+                  case UserStates.AddingRecipe:
                       result = await mediator.Send(new AddNewRecipeRequest(chatId,text,imageFileId,callBackData, caption), cancellationToken);
                       break;
                 }
@@ -92,7 +92,7 @@ public class TelegramBotService(
             {
                 switch (session.UserState)
                 {
-                    case States.Waiting:
+                    case UserStates.Waiting:
                        
                         await bot.SendMessage(
                             chatId,
@@ -100,7 +100,7 @@ public class TelegramBotService(
                             cancellationToken: cancellationToken
                         );
                         break;
-                    case States.AddingRecipe:
+                    case UserStates.AddingRecipe:
                         result = await mediator.Send(new AddNewRecipeRequest(chatId,text,imageFileId,callBackData, caption), cancellationToken);
                         break;
                 }
@@ -111,8 +111,14 @@ public class TelegramBotService(
                 case "add_recipe":
                    result = new HandlerResult("✏️ Введите наименование рецепта:",null);
                     Dictionaries.UserSessions[chatId] = new UserSession();
-                    Dictionaries.UserSessions[chatId].UserState = States.AddingRecipe;
-                    Dictionaries.UserSessions[chatId].RecipeState = States.WaitingForRecipeName;
+                    Dictionaries.UserSessions[chatId].UserState = UserStates.AddingRecipe;
+                    Dictionaries.UserSessions[chatId].RecipeState = RecipeStates.WaitingForRecipeName;
+                    break;
+                case "my_recipe":
+                    
+                    Dictionaries.UserSessions[chatId] = new UserSession();
+                    Dictionaries.UserSessions[chatId].UserState = UserStates.GetMyRecipes;
+                    result = await mediator.Send(new GetUserRecipesRequest(chatId,text,callBackData), cancellationToken);
                     break;
                 case "cancel":
                     result = await Cancel(chatId,text,callBackData, cancellationToken);
