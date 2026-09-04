@@ -1,13 +1,25 @@
+# Build
 **/bin/
 **/obj/
 
-**/.vs/
-**/.idea/
-**/.vscode/
+# Rider / JetBrains
+.idea/
 
-**/Debug/
-**/Release/
+# Visual Studio
+.vs/
 
-**/.env
+# VS Code
+.vscode/
+
+# User-specific project files
 **/*.user
 **/*.suo
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
