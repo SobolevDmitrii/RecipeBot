@@ -9,7 +9,6 @@ using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
-using Telegram.Bot.Types.ReplyMarkups;
 
 namespace RecipeBot.Telegram.BackGroundServices;
 
@@ -48,9 +47,19 @@ public class TelegramBotService(
              chatId = update.Message.Chat.Id;
              text = update.Message.Text;
              caption = update.Message.Caption;
-             if (update.Message.Photo != null &&string.IsNullOrWhiteSpace(update.Message.Photo.Last().FileId))
+             if (update.Message.Photo != null && !string.IsNullOrWhiteSpace(update.Message.Photo.Last().FileId))
              {
                  imageFileId = update.Message.Photo.Last().FileId;
+             }
+             switch (update.Message?.Text)
+             {
+                 case "/start":
+                     if (!Dictionaries.UserSessions.TryGetValue(update.Message.Chat.Id, out var user))
+                     {
+                         await mediator.Send(new GetOrCreateUserRequest(update), cancellationToken);
+                     }
+                     result = await mediator.Send(new StartMenuRequest(chatId, text, callBackData), cancellationToken);
+                     break;
              }
 
             if (Dictionaries.UserSessions.TryGetValue(chatId, out var session))
@@ -71,16 +80,7 @@ public class TelegramBotService(
                 }
                
             }
-            switch (update.Message?.Text)
-            {
-                case "/start":
-                    if (!Dictionaries.UserSessions.TryGetValue(update.Message.Chat.Id, out var user))
-                    {
-                        await mediator.Send(new GetOrCreateUserRequest(update), cancellationToken);
-                    }
-                    result = await mediator.Send(new StartMenuRequest(chatId, text, callBackData), cancellationToken);
-                    break;
-            }
+           
         } else if (update.CallbackQuery != null)
         {
             var callback = update.CallbackQuery;
@@ -93,7 +93,7 @@ public class TelegramBotService(
                 switch (session.UserState)
                 {
                     case States.Waiting:
-                        await bot.DeleteMessage(chatId, update.Message.MessageId, cancellationToken: cancellationToken);
+                       
                         await bot.SendMessage(
                             chatId,
                             "Нажмите на одну из кнопок",
@@ -109,16 +109,7 @@ public class TelegramBotService(
             switch (callBackData)
             {
                 case "add_recipe":
-                    /*await bot.EditMessageReplyMarkup(chatId, callback.Message.MessageId,
-                        new InlineKeyboardMarkup());
-                    await bot.DeleteMessage(chatId, callback.Message.MessageId);
-                    await bot.SendMessage(
-                        chatId,
-                        "✏️ Введите наименование рецепта:",
-                        cancellationToken: cancellationToken
-                    );*/
-                    
-                    await SendMessage(bot ,chatId, new HandlerResult("✏️ Введите наименование рецепта:",null), cancellationToken);
+                   result = new HandlerResult("✏️ Введите наименование рецепта:",null);
                     Dictionaries.UserSessions[chatId] = new UserSession();
                     Dictionaries.UserSessions[chatId].UserState = States.AddingRecipe;
                     Dictionaries.UserSessions[chatId].RecipeState = States.WaitingForRecipeName;

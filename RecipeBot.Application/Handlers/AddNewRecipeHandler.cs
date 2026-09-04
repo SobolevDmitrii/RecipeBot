@@ -72,12 +72,7 @@ public class AddNewRecipeHandler(
 
     private async Task<HandlerResult> WaitingImageRecipe(long chatId)
     {
-        //await botClient.DeleteMessage(chatId, update.CallbackQuery.Message.MessageId);
-        /*await botClient.SendMessage(
-            chatId,
-            "✏️ Загрузите и отправте картинку в чат.",
-            cancellationToken: cancellationToken
-        );*/
+        
         Dictionaries.UserSessions[chatId].RecipeState = States.WaitingForImageRecipe;
         return new HandlerResult("Загрузите и отправте картинку в чат.", null);
     }
@@ -87,17 +82,6 @@ public class AddNewRecipeHandler(
         if (Dictionaries.UserSessions.TryGetValue(chatId, out var session))
         {
             session.RecipeDraft.SetUrlImage(imageFileId);
-
-            /*await botClient.SendMessage(chatId, "✅ Выберите один из вариантов.",
-                replyMarkup: new InlineKeyboardMarkup(new[]
-                {
-                    new[]
-                    {
-                        InlineKeyboardButton.WithCallbackData("🖼️ Добавить фотографию блюда", "add_image"),
-                        InlineKeyboardButton.WithCallbackData("📝 Добавить этап приготовления", "add_step"),
-                        InlineKeyboardButton.WithCallbackData("❌ Отменить добавление рецепта", "cancel")
-                    }
-                }), cancellationToken: cancellationToken);*/
             var buttons = new[]
             {
                 InlineKeyboardButton.WithCallbackData("🖼️ Изменить фотографию блюда", "add_image"),
