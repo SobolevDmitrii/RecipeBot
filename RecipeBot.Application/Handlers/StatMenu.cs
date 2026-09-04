@@ -14,23 +14,28 @@ public class StartMenuHandler(ITelegramBotClient botClient) : IRequestHandler<St
     {
         var update = request.Update;
         var chatId = 0L;
+        var mesId = 0;
         if (!string.IsNullOrWhiteSpace(update.Message?.Text))
         {
             chatId = update.Message.Chat.Id;
+            mesId = update.Message.MessageId;
+            
         } else if(update.CallbackQuery != null) {
             chatId = update.CallbackQuery.Message.Chat.Id;
+            mesId = update.CallbackQuery.Message.MessageId;
         } else
         { 
             return update;
         }
 
         Dictionaries.UserState[chatId] = States.Start;
-        await botClient.DeleteMessage(chatId, update.Message.MessageId, cancellationToken: cancellationToken);
+        await botClient.DeleteMessage(chatId, mesId, cancellationToken: cancellationToken);
         var inlineKeyboard = new InlineKeyboardMarkup(new[]
         {
             new[]
             {
                 InlineKeyboardButton.WithCallbackData("📄 Новый рецепт", "add_recipe"),
+                InlineKeyboardButton.WithCallbackData("📄 Мои рецепты", "my_recipe"),
                 InlineKeyboardButton.WithCallbackData("⚙️ Настройки", "confirm_no")
             }
         });

@@ -10,7 +10,7 @@ public class RecipeRepository(IDbContextFactory<MyRecipeDbContext> contextFactor
     {
         var user = await usersRepository.GetByChatId(chatId, cancellationToken);
         var context = await contextFactory.CreateDbContextAsync(cancellationToken);
-        createRecipe.User = user;
+        createRecipe.UserId = user.Id;
         var recipe = context.Recipes.Add(createRecipe).Entity;
         await context.SaveChangesAsync(cancellationToken);
         return recipe;

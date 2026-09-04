@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RecipeBot.Application.Handlers;
+using RecipeBot.Domain.Abstract.IRepositories;
 using RecipeBot.Domain.Enums;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
@@ -35,7 +36,7 @@ public class TelegramBotService(
     private async Task HandleUpdateAsync(ITelegramBotClient bot, Update update, CancellationToken cancellationToken)
     {
         
-        if (!string.IsNullOrWhiteSpace(update.Message?.Text))
+        if (!string.IsNullOrWhiteSpace(update.Message?.Text) || !string.IsNullOrWhiteSpace(update.Message?.Caption) )
         {
             var chatId = update.Message.Chat.Id;
 
@@ -62,6 +63,10 @@ public class TelegramBotService(
             switch (update.Message?.Text)
             {
                 case "/start":
+                    if (!Dictionaries.UserState.TryGetValue(update.Message.Chat.Id, out var user))
+                    {
+                        await mediator.Send(new GetOrCreateUserRequest(update), cancellationToken);
+                    }
                     await mediator.Send(new StartMenuRequest(update), cancellationToken);
                     break;
             }
@@ -98,7 +103,7 @@ public class TelegramBotService(
                     await bot.EditMessageReplyMarkup(chatId, callback.Message.MessageId,
                         new InlineKeyboardMarkup());
                     await bot.DeleteMessage(chatId, callback.Message.MessageId);
-                    await bot.SendTextMessageAsync(
+                    await bot.SendMessage(
                         chatId,
                         "✏️ Введите наименование рецепта:",
                         cancellationToken: cancellationToken
@@ -106,10 +111,17 @@ public class TelegramBotService(
                     Dictionaries.UserState[chatId] = States.AddingRecipe;
                     Dictionaries.RecipeState[chatId] = States.WaitingForRecipeName;
                     break;
+                case "cancel":
+                    await Cancel(update, cancellationToken);
+                    break;
             }
         }
+        
+    }
 
-
+    private async Task Cancel(Update update, CancellationToken cancellationToken)
+    {
+        await mediator.Send(new StartMenuRequest(update), cancellationToken);
     }
 
     private Task HandleErrorAsync(ITelegramBotClient bot, Exception exception, CancellationToken ct)

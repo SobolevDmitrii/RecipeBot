@@ -1,8 +1,8 @@
-﻿/*using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using MyRecipeDomain.Models;
 
-namespace MyRecipeInfraData.EntityTypeConfigurations;
+namespace RecipeBot.Infrastructure.EntityTypeConfigurations;
 
 public class StageEntityTypeConfiguration : IEntityTypeConfiguration<Stage>
 {
@@ -14,4 +14,4 @@ public class StageEntityTypeConfiguration : IEntityTypeConfiguration<Stage>
             .WithMany(q => q.Stages)
             .HasForeignKey(q => q.RecipeId);
     }
-}*/
+}
