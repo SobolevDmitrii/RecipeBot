@@ -8,7 +8,7 @@ public class CategoryRepository(IDbContextFactory<MyRecipeDbContext> contextFact
 {
     public async Task<List<Category>> GetAllCategories(CancellationToken cancellationToken)
     {
-        var context = await contextFactory.CreateDbContextAsync(cancellationToken);
+        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
         return await context.Categories.ToListAsync(cancellationToken);
     }
 }

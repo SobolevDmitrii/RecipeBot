@@ -1,106 +1,94 @@
 ﻿using MediatR;
 using MyRecipeDomain.Models;
+using RecipeBot.Application.Models;
 using RecipeBot.Domain.Abstract.IRepositories;
 using RecipeBot.Domain.Enums;
-using Telegram.Bot;
-using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace RecipeBot.Application.Handlers;
 
-public class AddNewRecipeRequest(Update update) : IRequest
-{
-    public Update Update { get; set; } = update;
-}
+public record AddNewRecipeRequest(
+    long ChatId,
+    string? Text,
+    string? ImageFileId,
+    string? CallbackData,
+    string? Caption) : IRequest<HandlerResult?>;
+
 
 public class AddNewRecipeHandler(
-    ITelegramBotClient botClient,
     IMediator mediator,
     IRecipeRepository recipeRepository,
     ICategoryRepository categoryRepository)
-    : IRequestHandler<AddNewRecipeRequest>
+    : IRequestHandler<AddNewRecipeRequest,HandlerResult?>
 {
-    public async Task Handle(AddNewRecipeRequest request, CancellationToken cancellationToken)
+    public async Task<HandlerResult?> Handle(AddNewRecipeRequest request, CancellationToken cancellationToken)
     {
-        var update = request.Update;
-
-        if (!string.IsNullOrWhiteSpace(update.Message?.Text) || !string.IsNullOrWhiteSpace(update.Message?.Caption))
-        {
-            var chatId = update.Message.Chat.Id;
-
-            if (Dictionaries.RecipeState.TryGetValue(chatId, out var state))
+        //var update = request.Update;
+        var chatId = request.ChatId;
+        if (!string.IsNullOrWhiteSpace(request.Text) || !string.IsNullOrWhiteSpace(request.Caption))
+        { if (Dictionaries.UserSessions.TryGetValue(chatId, out var session))
             {
-                switch (state)
+                switch (session.RecipeState)
                 {
                     case States.WaitingForRecipeName:
-                        await AddNameRecipe(update, chatId, cancellationToken);
-                        break;
+                        return await AddNameRecipe(request.Text, chatId, cancellationToken);
                     case States.WaitingForImageRecipe:
-                        await AddImageRecipe(update, chatId, cancellationToken);
-                        break;
+                        return await AddImageRecipe(request.ImageFileId, chatId);
                     case States.WaitingForIngredients:
-                        await AddIngredients(update, chatId, cancellationToken);
-                        break;
+                        return await AddIngredients(request.Text, chatId); 
                     case States.AddingStage:
-                        await AddStage(update, chatId, cancellationToken);
-                        break;
+                        return await AddStage(request.Text,request.Caption,request.ImageFileId, chatId);
                     default:
                         throw new InvalidDataException();
                 }
             }
         }
 
-        if (update.CallbackQuery != null)
+        if (request.CallbackData != null)
         {
-            var chatId = update.CallbackQuery.Message.Chat.Id;
-            switch (update.CallbackQuery.Data)
+            switch (request.CallbackData)
             {
                 case "add_image":
-                    await WaitingImageRecipe(update, chatId, cancellationToken);
-                    break;
+                    return await WaitingImageRecipe(chatId);
                 case "add_step":
-                    await WaitingDescription(update, chatId, cancellationToken);
-                    break;
+                    return await WaitingDescription(chatId);
                 case "cancel":
-                    await CancelRecipe(update, cancellationToken);
-                    break;
+                    return await CancelRecipe(request.ChatId,request.Text,request.CallbackData, cancellationToken);
                 case "done":
-                    await Done(update, chatId, cancellationToken);
-                    break;
-                default:
-                    break;
+                    return await Done(request.ChatId,request.Text,request.CallbackData, cancellationToken);
             }
 
-            if (Dictionaries.RecipeState.TryGetValue(chatId, out var state))
+            if (Dictionaries.UserSessions.TryGetValue(chatId, out var session))
             {
-                switch (state)
+                switch (session.RecipeState)
                 {
                     case States.WaitingForCategory:
-                        await AddCategory(update, chatId, cancellationToken);
-                        break;
+                        return await AddCategory(request.CallbackData,chatId);
                 }
             }
         }
+        return null;
     }
 
-    private async Task WaitingImageRecipe(Update update, long chatId, CancellationToken cancellationToken)
+    private async Task<HandlerResult> WaitingImageRecipe(long chatId)
     {
-        await botClient.DeleteMessage(chatId, update.CallbackQuery.Message.MessageId);
-        await botClient.SendMessage(
+        //await botClient.DeleteMessage(chatId, update.CallbackQuery.Message.MessageId);
+        /*await botClient.SendMessage(
             chatId,
             "✏️ Загрузите и отправте картинку в чат.",
             cancellationToken: cancellationToken
-        );
-        Dictionaries.RecipeState[chatId] = States.WaitingForImageRecipe;
+        );*/
+        Dictionaries.UserSessions[chatId].RecipeState = States.WaitingForImageRecipe;
+        return new HandlerResult("Загрузите и отправте картинку в чат.", null);
     }
 
-    private async Task AddImageRecipe(Update update, long chatId, CancellationToken cancellationToken)
+    private async Task<HandlerResult?> AddImageRecipe(string imageFileId, long chatId)
     {
-        if (Dictionaries.RecipeDrafts.TryGetValue(chatId, out var recipe))
+        if (Dictionaries.UserSessions.TryGetValue(chatId, out var session))
         {
-            recipe.UrlImage = update.Message.Photo.Last().FileId;
+            session.RecipeDraft.SetUrlImage(imageFileId);
 
-            await botClient.SendMessage(chatId, "✅ Выберите один из вариантов.",
+            /*await botClient.SendMessage(chatId, "✅ Выберите один из вариантов.",
                 replyMarkup: new InlineKeyboardMarkup(new[]
                 {
                     new[]
@@ -109,56 +97,68 @@ public class AddNewRecipeHandler(
                         InlineKeyboardButton.WithCallbackData("📝 Добавить этап приготовления", "add_step"),
                         InlineKeyboardButton.WithCallbackData("❌ Отменить добавление рецепта", "cancel")
                     }
-                }), cancellationToken: cancellationToken);
-            Dictionaries.RecipeState[chatId] = States.WaitingMove;
+                }), cancellationToken: cancellationToken);*/
+            var buttons = new[]
+            {
+                InlineKeyboardButton.WithCallbackData("🖼️ Изменить фотографию блюда", "add_image"),
+                InlineKeyboardButton.WithCallbackData("📝 Добавить этап приготовления", "add_step"),
+                InlineKeyboardButton.WithCallbackData("❌ Отменить добавление рецепта", "cancel")
+            };
+            Dictionaries.UserSessions[chatId].RecipeState = States.WaitingMove;
+            return new HandlerResult("✅ Выберите один из вариантов.", new InlineKeyboardMarkup(buttons));
         }
+
+        return null;
     }
 
-    private async Task AddNameRecipe(Update update, long chatId, CancellationToken cancellationToken)
+    private async Task<HandlerResult> AddNameRecipe(string text, long chatId, CancellationToken cancellationToken)
     {
-        Dictionaries.RecipeDrafts[chatId] = new Recipe
-        {
-            Name = update.Message?.Text
-        };
+        var recipe = new Recipe();
+        recipe.SetName(text);
+        Dictionaries.UserSessions[chatId].RecipeDraft = recipe;
         var categories = await categoryRepository.GetAllCategories(cancellationToken);
-        var keys = new List<InlineKeyboardButton>();
+        var buttons = new List<InlineKeyboardButton>();
         foreach (var category in categories)
         {
-            keys.Add(InlineKeyboardButton.WithCallbackData($"{category.Name}", $"{category.Id}"));
+            buttons.Add(InlineKeyboardButton.WithCallbackData($"{category.Name}", $"{category.Id}"));
         }
 
-        await botClient.SendMessage(chatId, "✅ Выберите категорию.",
+        /*await botClient.SendMessage(chatId, "✅ Выберите категорию.",
             replyMarkup: new InlineKeyboardMarkup(new[]
             {
-                keys
-            }), cancellationToken: cancellationToken);
-        Dictionaries.RecipeState[chatId] = States.WaitingForCategory;
+                buttons
+            }), cancellationToken: cancellationToken);*/
+        Dictionaries.UserSessions[chatId].RecipeState = States.WaitingForCategory;
+        return new HandlerResult("✅ Выберите категорию.", new InlineKeyboardMarkup(buttons));
     }
 
-    private async Task AddCategory(Update update, long chatId, CancellationToken cancellationToken)
+    private async Task<HandlerResult?> AddCategory(string callBack,  long chatId)
     {
-        var categoryId = int.Parse(update.CallbackQuery.Data);
-        if (Dictionaries.RecipeDrafts.TryGetValue(chatId, out var recipe))
+        var categoryId = int.Parse(callBack);
+        if (Dictionaries.UserSessions.TryGetValue(chatId, out var session))
         {
-            recipe.CategoryId = categoryId;
-
-            await botClient.DeleteMessage(chatId, update.CallbackQuery.Message.MessageId, cancellationToken: cancellationToken);
+            session.RecipeDraft.SetCategoryId(categoryId);
+            /*await botClient.DeleteMessage(chatId, messageId,
+                cancellationToken: cancellationToken);
             await botClient.SendMessage(
                 chatId,
                 "✏️ Введите ингредиенты:",
                 cancellationToken: cancellationToken
-            );
-            Dictionaries.RecipeState[chatId] = States.WaitingForIngredients;
+            );*/
+            Dictionaries.UserSessions[chatId].RecipeState = States.WaitingForIngredients;
+            return new HandlerResult("✏️ Введите ингредиенты:", null);
         }
+
+        return null;
     }
 
-    private async Task AddIngredients(Update update, long chatId, CancellationToken cancellationToken)
+    private async Task<HandlerResult?> AddIngredients(string text, long chatId)
     {
-        if (Dictionaries.RecipeDrafts.TryGetValue(chatId, out var recipe))
+        if (Dictionaries.UserSessions.TryGetValue(chatId, out var session))
         {
-            recipe.Ingredients = update.Message?.Text;
+            session.RecipeDraft.SetIngredients(text);
             //await botClient.DeleteMessage(chatId, update.Message.MessageId, cancellationToken: cancellationToken);
-            await botClient.SendMessage(chatId, "✅ Выберите один из вариантов.",
+            /*await botClient.SendMessage(chatId, "✅ Выберите один из вариантов.",
                 replyMarkup: new InlineKeyboardMarkup(new[]
                 {
                     new[]
@@ -167,72 +167,72 @@ public class AddNewRecipeHandler(
                         InlineKeyboardButton.WithCallbackData("📝 Добавить этап приготовления", "add_step"),
                         InlineKeyboardButton.WithCallbackData("❌ Отменить добавление рецепта", "cancel")
                     }
-                }), cancellationToken: cancellationToken);
-            Dictionaries.RecipeState[chatId] = States.WaitingMove;
+                }), cancellationToken: cancellationToken);*/
+           
+            Dictionaries.UserSessions[chatId].RecipeState = States.WaitingMove;
+            var buttons = new[]
+            {
+                InlineKeyboardButton.WithCallbackData("🖼️ Добавить фотографию блюда", "add_image"),
+                InlineKeyboardButton.WithCallbackData("📝 Добавить этап приготовления", "add_step"),
+                InlineKeyboardButton.WithCallbackData("❌ Отменить добавление рецепта", "cancel")
+            };
+            return new HandlerResult("✅ Выберите один из вариантов.", new InlineKeyboardMarkup(buttons));
         }
-        else
+        return null;
+        /*else
         {
             await botClient.EditMessageReplyMarkup(chatId, update.Message.MessageId, new InlineKeyboardMarkup(),
                 cancellationToken: cancellationToken);
             await botClient.SendMessage(chatId, "⚠️ Вы ещё не ввели текст.", cancellationToken: cancellationToken);
-        }
+        }*/
     }
 
-    private async Task CancelRecipe(Update update, CancellationToken cancellationToken)
+    private async Task<HandlerResult?> CancelRecipe(long chatId,string? text, string? callBack, CancellationToken cancellationToken)
     {
-        await mediator.Send(new StartMenuRequest(update), cancellationToken);
+        return await mediator.Send(new StartMenuRequest(chatId, text, callBack), cancellationToken);
     }
 
-    private async Task AddStage(Update update, long chatId, CancellationToken cancellationToken)
+    private async Task<HandlerResult> AddStage(string? text, string? caption, string? imageFileId, long chatId)
     {
-        if (Dictionaries.RecipeDrafts.TryGetValue(chatId, out var recipe))
+        if (Dictionaries.UserSessions.TryGetValue(chatId, out var session))
         {
-            var number = recipe.Stages == null ? 1 : recipe.Stages.Count + 1;
-            var stage = new Stage
+            var number = session.RecipeDraft.Stages == null ? 1 : session.RecipeDraft.Stages.Count + 1;
+            var stage = new Stage();
+
+            stage.SetDescription(text ??= caption);
+            stage.SetNumber(number);
+            
+            if (!string.IsNullOrWhiteSpace(imageFileId))
             {
-                Description = update.Message?.Text ??= update.Message?.Caption,
-                Number = number
-            };
-            if (update.Message.Photo != null)
-            {
-                stage.UrlImage = update.Message.Photo.Last().FileId;
+                stage.SetUrlImage(imageFileId);
             }
 
-            recipe.Stages ??= [];
-            recipe.Stages.Add(stage);
+
+            session.RecipeDraft.AddStage(stage);
         }
-
-        await botClient.SendMessage(chatId, "✅ Выберите один из вариантов.",
-            replyMarkup: new InlineKeyboardMarkup(new[]
-            {
-                new[]
-                {
-                    //InlineKeyboardButton.WithCallbackData("🖼️ Добавить фотографию этапа", "add_image_stage"),
-                    InlineKeyboardButton.WithCallbackData("📝 Следующий этап приготовления", "add_step"),
-                    InlineKeyboardButton.WithCallbackData("📝 Завершить", "done"),
-                    InlineKeyboardButton.WithCallbackData("❌ Отменить добавление рецепта", "cancel")
-                }
-            }), cancellationToken: cancellationToken);
-    }
-
-    private async Task WaitingDescription(Update update, long chatId, CancellationToken cancellationToken)
-    {
-        await botClient.DeleteMessage(chatId, update.CallbackQuery.Message.MessageId);
-        await botClient.SendMessage(
-            chatId,
-            "✏️ Введите описание этапа, если хотите добавить картинку этапа, просто пришлите ее вместе с текстом:",
-            cancellationToken: cancellationToken
-        );
-        Dictionaries.RecipeState[chatId] = States.AddingStage;
-    }
-
-    private async Task Done(Update update, long chatId, CancellationToken cancellationToken)
-    {
-        if (Dictionaries.RecipeDrafts.TryGetValue(chatId, out var recipe))
+        
+        var buttons = new[]
         {
-            await recipeRepository.Add(recipe, chatId, cancellationToken);
+            InlineKeyboardButton.WithCallbackData("📝 Следующий этап приготовления", "add_step"),
+            InlineKeyboardButton.WithCallbackData("📝 Завершить", "done"),
+            InlineKeyboardButton.WithCallbackData("❌ Отменить добавление рецепта", "cancel")
+        };
+        return new HandlerResult("✅ Выберите один из вариантов.", new InlineKeyboardMarkup(buttons));
+    }
+
+    private async Task<HandlerResult> WaitingDescription(long chatId)
+    {
+        Dictionaries.UserSessions[chatId].RecipeState = States.AddingStage;
+        return new HandlerResult("✏️ Введите описание этапа, если хотите добавить картинку этапа, просто пришлите ее вместе с текстом:", null);
+    }
+
+    private async Task<HandlerResult?> Done(long chatId,string? text, string? callBack, CancellationToken cancellationToken)
+    {
+        if (Dictionaries.UserSessions.TryGetValue(chatId, out var session))
+        {
+            await recipeRepository.Add(session.RecipeDraft, chatId, cancellationToken);
         }
 
-        await mediator.Send(new StartMenuRequest(update), cancellationToken);
+        return await mediator.Send(new StartMenuRequest(chatId, text, callBack), cancellationToken);
     }
 }

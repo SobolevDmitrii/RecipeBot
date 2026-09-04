@@ -2,13 +2,68 @@
 
 public class Recipe
 {
-    public int Id { get; set; }
-    public string Name { get; set; }
-    public string? UrlImage { get; set; }
-    public string Ingredients { get; set; }
-    public virtual List<Stage> Stages { get; set; }
-    public virtual User User { get; set; }
-    public virtual Category Category { get; set; }
-    public int CategoryId { get; set; }
-    public int UserId { get; set; }
+    public int Id { get; private set; }
+    public string Name { get; private set; }
+    public string? UrlImage { get; private set; }
+    public string Ingredients { get; private set; }
+    public virtual List<Stage> Stages { get; private set; } = [];
+    public virtual User User { get; private set; }
+    public virtual Category Category { get; private set; }
+    public int CategoryId { get; private set; }
+    public int UserId { get; private set; }
+
+    public void SetName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Name cannot be empty");
+
+        Name = name;
+    }
+
+    public void SetUrlImage(string urlImage)
+    {
+        if (string.IsNullOrWhiteSpace(urlImage))
+            throw new ArgumentException("SetUrlImage cannot be empty");
+
+        UrlImage = urlImage;
+    }
+
+    public void SetIngredients(string ingredients)
+    {
+        if (string.IsNullOrWhiteSpace(ingredients))
+            throw new ArgumentException("Ingredients cannot be empty");
+
+        Ingredients = ingredients;
+    }
+
+    public void SetCategoryId(int categoryId)
+    {
+        if (categoryId < 1)
+            throw new ArgumentException("CategoryId cannot be negative");
+
+        CategoryId = categoryId;
+    }
+
+    public void SetUserId(int userId)
+    {
+        if (userId < 1)
+            throw new ArgumentException("UserId cannot be negative");
+
+        UserId = userId;
+    }
+
+    public void AddStage(Stage stage)
+    {
+        if (stage == null)
+            throw new ArgumentException("Ingredients cannot be null");
+        
+        Stages.Add(stage);
+    }
+    public void AddRangeStage(List<Stage> stages)
+    {
+        if (stages == null || stages.Count == 0)
+            throw new ArgumentException("Ingredients cannot be null");
+        
+        Stages.AddRange(stages);
+    }
 }

@@ -1,7 +1,6 @@
 ﻿using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using RecipeBot.Application.BackGroundServices;
 using Telegram.Bot;
 
 namespace RecipeBot.Application;
@@ -10,7 +9,7 @@ public static class ApplicationExtension
 {
     public static void AddApplication(this IServiceCollection serviceCollection, IConfiguration configuration)
     {
-        serviceCollection.AddHostedService<TelegramBotService>();
+        
         serviceCollection.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
         serviceCollection.AddTelegramBot(configuration);
         //serviceCollection.AddSingleton<HandlersFactory>();
