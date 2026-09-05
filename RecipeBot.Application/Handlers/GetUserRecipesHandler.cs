@@ -138,6 +138,7 @@ public class GetUserRecipesHandler(IRecipeRepository recipeRepository ,
         
         return new HandlerResult(
             message,
+            recipe.UrlImage,
             new InlineKeyboardMarkup(buttons));
     }
     private async Task<HandlerResult?> RemoveRecipe(long chatId, int recipeId,
@@ -151,7 +152,7 @@ public class GetUserRecipesHandler(IRecipeRepository recipeRepository ,
     private HandlerResult WaitingNameForSearch(long chatId)
     {
         UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.WaitingForRecipeName;
-        return new HandlerResult("Введите полное и частичное наименование рецепта.", null);
+        return new HandlerResult("Введите полное и частичное наименование рецепта.", null,null);
     }
     
     private async Task<HandlerResult?> SearchByName(long chatId, string text ,CancellationToken cancellationToken)
@@ -164,7 +165,7 @@ public class GetUserRecipesHandler(IRecipeRepository recipeRepository ,
             5);
         UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.ShowRecipces;
         UserSessionsStore.UserSessions[chatId].Recipes = recipes;
-        return new HandlerResult("Выбери рецепт", buttons);
+        return new HandlerResult("Выбери рецепт", null,buttons);
     }
 
     private async Task<HandlerResult?> SearchByCategory(long chatId, string callbackData,CancellationToken cancellationToken)
@@ -177,7 +178,7 @@ public class GetUserRecipesHandler(IRecipeRepository recipeRepository ,
             5);
         UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.ShowRecipces;
         UserSessionsStore.UserSessions[chatId].Recipes = recipes;
-        return new HandlerResult("Выбери рецепт", buttons);
+        return new HandlerResult("Выбери рецепт", null,buttons);
     }
 
     private async Task<HandlerResult?> GetRecipesByCateGory(long chatId, CancellationToken cancellationToken)
@@ -189,7 +190,7 @@ public class GetUserRecipesHandler(IRecipeRepository recipeRepository ,
             buttons.Add(InlineKeyboardButton.WithCallbackData($"{category.Name}", $"{category.Id}"));
         }
         UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.WaitingForCategory;
-        return new HandlerResult("✅ Выберите категорию.", new InlineKeyboardMarkup(buttons));
+        return new HandlerResult("✅ Выберите категорию.", null,new InlineKeyboardMarkup(buttons));
     }
 
     private HandlerResult? GetPageRecipe(long chatId,string callbackData)
@@ -201,6 +202,7 @@ public class GetUserRecipesHandler(IRecipeRepository recipeRepository ,
             
             return new HandlerResult(
                 "📋 Ваши рецепты:",
+                null,
                 CreateRecipePagination
                     .CreatePagination(UserSessionsStore.UserSessions[chatId].Recipes, page, 5));
         }
@@ -263,7 +265,7 @@ public class GetUserRecipesHandler(IRecipeRepository recipeRepository ,
             }
         };
         UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.WaitMoveForRecipe;
-        return new HandlerResult("Выбери действие", buttons);
+        return new HandlerResult("Выбери действие", null,buttons);
     }
     
     private async Task<HandlerResult?> GetAllRecipe (long chatId,CancellationToken cancellationToken)
@@ -276,7 +278,7 @@ public class GetUserRecipesHandler(IRecipeRepository recipeRepository ,
             5);
         UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.ShowRecipces;
         UserSessionsStore.UserSessions[chatId].Recipes = recipes;
-        return new HandlerResult("Выбери рецепт", buttons);
+        return new HandlerResult("Выбери рецепт", null,buttons);
     }
     
     private HandlerResult? ShowRecipeSelectionOptions(long chatId)
@@ -300,7 +302,7 @@ public class GetUserRecipesHandler(IRecipeRepository recipeRepository ,
                 }
             };
             session.RecipeState = RecipeStates.WaitingMove;
-            return new HandlerResult("✅ Выберите один из вариантов.", new InlineKeyboardMarkup(buttons));
+            return new HandlerResult("✅ Выберите один из вариантов.", null,new InlineKeyboardMarkup(buttons));
         }
 
         return null;

@@ -5,4 +5,5 @@ namespace RecipeBot.Application.Models;
 public record HandlerResult
 (
     string Message,
+    string? UrlImage,
     InlineKeyboardMarkup? Buttons);

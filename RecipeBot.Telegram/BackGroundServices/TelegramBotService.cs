@@ -41,14 +41,14 @@ public class TelegramBotService(
 
     private async Task HandleUpdateAsync(ITelegramBotClient bot, Update update, CancellationToken cancellationToken)
     {
-        var result = new HandlerResult("", null);
+        var result = new HandlerResult("", null,null);
         var chatId = 0L;
         string? text = null;
         string? imageFileId = null;
         string? callbackData = null;
         string? caption = null;
 
-        if (!string.IsNullOrWhiteSpace(update.Message?.Text) || !string.IsNullOrWhiteSpace(update.Message?.Caption))
+        if (!string.IsNullOrWhiteSpace(update.Message?.Text) || !string.IsNullOrWhiteSpace(update.Message?.Caption) || update.Message?.Photo != null)
         {
             chatId = update.Message.Chat.Id;
             text = update.Message.Text;
@@ -128,7 +128,7 @@ public class TelegramBotService(
             switch (callbackData)
             {
                 case "add_recipe":
-                    result = new HandlerResult("✏️ Введите наименование рецепта:", null);
+                    result = new HandlerResult("✏️ Введите наименование рецепта:", null,null);
                     UserSessionsStore.UserSessions[chatId] = new UserSession();
                     UserSessionsStore.UserSessions[chatId].UserState = UserStates.AddingRecipe;
                     UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.WaitingForRecipeName;
@@ -147,7 +147,7 @@ public class TelegramBotService(
         }
         else
         {
-            result = new HandlerResult("⚠️ Вы ещё не ввели текст.", null);
+            result = new HandlerResult("⚠️ Вы ещё не ввели текст.", null,null);
         }
 
         await SendMessage(bot, chatId, result, cancellationToken);
@@ -157,12 +157,23 @@ public class TelegramBotService(
         CancellationToken cancellationToken)
     {
         if (result == null) return;
-        await bot.SendMessage(
+        if (string.IsNullOrEmpty(result.UrlImage)) 
+        {
+            await bot.SendMessage(
             chatId,
             text: result.Message,
             replyMarkup: result.Buttons,
-            cancellationToken: cancellationToken
-        );
+            cancellationToken: cancellationToken);
+        }
+        else
+        {
+            await bot.SendPhoto(
+                chatId,
+                InputFile.FromFileId(result.UrlImage),
+                caption: result.Message,
+                replyMarkup: result.Buttons,
+                cancellationToken: cancellationToken);
+        }
     }
 
     private async Task<HandlerResult?> Cancel(long chatId, string? text, string? callBack,

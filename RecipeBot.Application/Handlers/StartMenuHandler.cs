@@ -33,6 +33,6 @@ public class StartMenuHandler() : IRequestHandler<StartMenuRequest,HandlerResult
             InlineKeyboardButton.WithCallbackData("📄 Мои рецепты", "my_recipe"),
            // InlineKeyboardButton.WithCallbackData("⚙️ Настройки", "confirm_no")
         };
-        return new HandlerResult("Выберите действие:",new InlineKeyboardMarkup(buttons));
+        return new HandlerResult("Выберите действие:", null,new InlineKeyboardMarkup(buttons));
     }
 }

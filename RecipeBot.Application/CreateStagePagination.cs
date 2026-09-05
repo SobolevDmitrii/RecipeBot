@@ -53,6 +53,7 @@ public class CreateStagePagination
         
         return new HandlerResult(
             message,
+            recipe.Stages[page].UrlImage,
             new InlineKeyboardMarkup(buttons));
     }
 }

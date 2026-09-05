@@ -24,7 +24,8 @@ public class AddNewRecipeHandler(
     public async Task<HandlerResult?> Handle(AddNewRecipeRequest request, CancellationToken cancellationToken)
     {
         var chatId = request.ChatId;
-        if (!string.IsNullOrWhiteSpace(request.Text) || !string.IsNullOrWhiteSpace(request.Caption))
+        if (!string.IsNullOrWhiteSpace(request.Text) || !string.IsNullOrWhiteSpace(request.Caption )
+            || !string.IsNullOrWhiteSpace(request.ImageFileId ))
         { if (UserSessionsStore.UserSessions.TryGetValue(chatId, out var session))
             {
                 switch (session.RecipeState)
@@ -72,7 +73,7 @@ public class AddNewRecipeHandler(
     private async Task<HandlerResult> WaitingImageRecipe(long chatId)
     {
         UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.WaitingForImageRecipe;
-        return new HandlerResult("Загрузите и отправте картинку в чат.", null);
+        return new HandlerResult("Загрузите и отправте картинку в чат.", null,null);
     }
 
     private async Task<HandlerResult?> AddImageRecipe(string imageFileId, long chatId)
@@ -87,7 +88,7 @@ public class AddNewRecipeHandler(
                 InlineKeyboardButton.WithCallbackData("❌ Отменить добавление рецепта", "cancel")
             };
             UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.WaitingMove;
-            return new HandlerResult("✅ Выберите один из вариантов.", new InlineKeyboardMarkup(buttons));
+            return new HandlerResult("✅ Выберите один из вариантов.", null,new InlineKeyboardMarkup(buttons));
         }
 
         return null;
@@ -105,7 +106,7 @@ public class AddNewRecipeHandler(
             buttons.Add(InlineKeyboardButton.WithCallbackData($"{category.Name}", $"{category.Id}"));
         }
         UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.WaitingForCategory;
-        return new HandlerResult("✅ Выберите категорию.", new InlineKeyboardMarkup(buttons));
+        return new HandlerResult("✅ Выберите категорию.", null,new InlineKeyboardMarkup(buttons));
     }
 
     private async Task<HandlerResult?> AddCategory(string callBack,  long chatId)
@@ -115,7 +116,7 @@ public class AddNewRecipeHandler(
         {
             session.RecipeDraft.SetCategoryId(categoryId);
             UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.WaitingForIngredients;
-            return new HandlerResult("✏️ Введите ингредиенты:", null);
+            return new HandlerResult("✏️ Введите ингредиенты:", null,null);
         }
 
         return null;
@@ -134,7 +135,7 @@ public class AddNewRecipeHandler(
                 InlineKeyboardButton.WithCallbackData("📝 Добавить этап приготовления", "add_step"),
                 InlineKeyboardButton.WithCallbackData("❌ Отменить добавление рецепта", "cancel")
             };
-            return new HandlerResult("✅ Выберите один из вариантов.", new InlineKeyboardMarkup(buttons));
+            return new HandlerResult("✅ Выберите один из вариантов.", null,new InlineKeyboardMarkup(buttons));
         }
         return null;
     }
@@ -170,13 +171,13 @@ public class AddNewRecipeHandler(
             InlineKeyboardButton.WithCallbackData("📝 Завершить", "done"),
             InlineKeyboardButton.WithCallbackData("❌ Отменить добавление рецепта", "cancel")
         };
-        return new HandlerResult("✅ Выберите один из вариантов.", new InlineKeyboardMarkup(buttons));
+        return new HandlerResult("✅ Выберите один из вариантов.", null,new InlineKeyboardMarkup(buttons));
     }
 
     private async Task<HandlerResult> WaitingDescription(long chatId)
     {
         UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.AddingStage;
-        return new HandlerResult("✏️ Введите описание этапа, если хотите добавить картинку этапа, просто пришлите ее вместе с текстом:", null);
+        return new HandlerResult("✏️ Введите описание этапа, если хотите добавить картинку этапа, просто пришлите ее вместе с текстом:", null,null);
     }
 
     private async Task<HandlerResult?> Done(long chatId,string? text, string? callBack, CancellationToken cancellationToken)
