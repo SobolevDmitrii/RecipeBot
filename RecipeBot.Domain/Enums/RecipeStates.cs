@@ -7,5 +7,8 @@ public enum RecipeStates
     WaitingForIngredients,
     AddingStage,
     WaitingMove,
-    WaitingForImageRecipe
+    WaitingForImageRecipe,
+    ShowRecipeSelectionOptions,
+    ShowRecipces,
+    WaitMoveForRecipe
 }

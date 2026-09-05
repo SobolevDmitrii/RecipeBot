@@ -3,7 +3,7 @@ using RecipeBot.Application.Models;
 
 namespace RecipeBot.Application;
 
-public static class Dictionaries
+public static class UserSessionsStore
 {
     /*public static ConcurrentDictionary<long, States> UserState = new();
     public static ConcurrentDictionary<long, States> RecipeState = new();

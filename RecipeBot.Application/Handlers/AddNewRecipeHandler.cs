@@ -23,10 +23,9 @@ public class AddNewRecipeHandler(
 {
     public async Task<HandlerResult?> Handle(AddNewRecipeRequest request, CancellationToken cancellationToken)
     {
-        //var update = request.Update;
         var chatId = request.ChatId;
         if (!string.IsNullOrWhiteSpace(request.Text) || !string.IsNullOrWhiteSpace(request.Caption))
-        { if (Dictionaries.UserSessions.TryGetValue(chatId, out var session))
+        { if (UserSessionsStore.UserSessions.TryGetValue(chatId, out var session))
             {
                 switch (session.RecipeState)
                 {
@@ -53,12 +52,12 @@ public class AddNewRecipeHandler(
                 case "add_step":
                     return await WaitingDescription(chatId);
                 case "cancel":
-                    return await CancelRecipe(request.ChatId,request.Text,request.CallbackData, cancellationToken);
+                    return CancelRecipe(request.ChatId);
                 case "done":
                     return await Done(request.ChatId,request.Text,request.CallbackData, cancellationToken);
             }
 
-            if (Dictionaries.UserSessions.TryGetValue(chatId, out var session))
+            if (UserSessionsStore.UserSessions.TryGetValue(chatId, out var session))
             {
                 switch (session.RecipeState)
                 {
@@ -72,14 +71,13 @@ public class AddNewRecipeHandler(
 
     private async Task<HandlerResult> WaitingImageRecipe(long chatId)
     {
-        
-        Dictionaries.UserSessions[chatId].RecipeState = RecipeStates.WaitingForImageRecipe;
+        UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.WaitingForImageRecipe;
         return new HandlerResult("Загрузите и отправте картинку в чат.", null);
     }
 
     private async Task<HandlerResult?> AddImageRecipe(string imageFileId, long chatId)
     {
-        if (Dictionaries.UserSessions.TryGetValue(chatId, out var session))
+        if (UserSessionsStore.UserSessions.TryGetValue(chatId, out var session))
         {
             session.RecipeDraft.SetUrlImage(imageFileId);
             var buttons = new[]
@@ -88,7 +86,7 @@ public class AddNewRecipeHandler(
                 InlineKeyboardButton.WithCallbackData("📝 Добавить этап приготовления", "add_step"),
                 InlineKeyboardButton.WithCallbackData("❌ Отменить добавление рецепта", "cancel")
             };
-            Dictionaries.UserSessions[chatId].RecipeState = RecipeStates.WaitingMove;
+            UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.WaitingMove;
             return new HandlerResult("✅ Выберите один из вариантов.", new InlineKeyboardMarkup(buttons));
         }
 
@@ -99,30 +97,24 @@ public class AddNewRecipeHandler(
     {
         var recipe = new Recipe();
         recipe.SetName(text);
-        Dictionaries.UserSessions[chatId].RecipeDraft = recipe;
+        UserSessionsStore.UserSessions[chatId].RecipeDraft = recipe;
         var categories = await categoryRepository.GetAllCategories(cancellationToken);
         var buttons = new List<InlineKeyboardButton>();
         foreach (var category in categories)
         {
             buttons.Add(InlineKeyboardButton.WithCallbackData($"{category.Name}", $"{category.Id}"));
         }
-
-        /*await botClient.SendMessage(chatId, "✅ Выберите категорию.",
-            replyMarkup: new InlineKeyboardMarkup(new[]
-            {
-                buttons
-            }), cancellationToken: cancellationToken);*/
-        Dictionaries.UserSessions[chatId].RecipeState = RecipeStates.WaitingForCategory;
+        UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.WaitingForCategory;
         return new HandlerResult("✅ Выберите категорию.", new InlineKeyboardMarkup(buttons));
     }
 
     private async Task<HandlerResult?> AddCategory(string callBack,  long chatId)
     {
         var categoryId = int.Parse(callBack);
-        if (Dictionaries.UserSessions.TryGetValue(chatId, out var session))
+        if (UserSessionsStore.UserSessions.TryGetValue(chatId, out var session))
         {
             session.RecipeDraft.SetCategoryId(categoryId);
-            Dictionaries.UserSessions[chatId].RecipeState = RecipeStates.WaitingForIngredients;
+            UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.WaitingForIngredients;
             return new HandlerResult("✏️ Введите ингредиенты:", null);
         }
 
@@ -131,11 +123,11 @@ public class AddNewRecipeHandler(
 
     private async Task<HandlerResult?> AddIngredients(string text, long chatId)
     {
-        if (Dictionaries.UserSessions.TryGetValue(chatId, out var session))
+        if (UserSessionsStore.UserSessions.TryGetValue(chatId, out var session))
         {
             session.RecipeDraft.SetIngredients(text);
             
-            Dictionaries.UserSessions[chatId].RecipeState = RecipeStates.WaitingMove;
+            UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.WaitingMove;
             var buttons = new[]
             {
                 InlineKeyboardButton.WithCallbackData("🖼️ Добавить фотографию блюда", "add_image"),
@@ -147,14 +139,15 @@ public class AddNewRecipeHandler(
         return null;
     }
 
-    private async Task<HandlerResult?> CancelRecipe(long chatId,string? text, string? callBack, CancellationToken cancellationToken)
+    private HandlerResult? CancelRecipe(long chatId)
     {
-        return await mediator.Send(new StartMenuRequest(chatId, text, callBack), cancellationToken);
+        UserSessionsStore.UserSessions[chatId].UserState = UserStates.Cansel;
+        return null;
     }
 
     private async Task<HandlerResult> AddStage(string? text, string? caption, string? imageFileId, long chatId)
     {
-        if (Dictionaries.UserSessions.TryGetValue(chatId, out var session))
+        if (UserSessionsStore.UserSessions.TryGetValue(chatId, out var session))
         {
             var number = session.RecipeDraft.Stages == null ? 1 : session.RecipeDraft.Stages.Count + 1;
             var stage = new Stage();
@@ -182,13 +175,13 @@ public class AddNewRecipeHandler(
 
     private async Task<HandlerResult> WaitingDescription(long chatId)
     {
-        Dictionaries.UserSessions[chatId].RecipeState = RecipeStates.AddingStage;
+        UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.AddingStage;
         return new HandlerResult("✏️ Введите описание этапа, если хотите добавить картинку этапа, просто пришлите ее вместе с текстом:", null);
     }
 
     private async Task<HandlerResult?> Done(long chatId,string? text, string? callBack, CancellationToken cancellationToken)
     {
-        if (Dictionaries.UserSessions.TryGetValue(chatId, out var session))
+        if (UserSessionsStore.UserSessions.TryGetValue(chatId, out var session))
         {
             await recipeRepository.Add(session.RecipeDraft, chatId, cancellationToken);
         }

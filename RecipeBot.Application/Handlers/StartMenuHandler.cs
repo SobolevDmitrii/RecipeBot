@@ -22,7 +22,7 @@ public class StartMenuHandler() : IRequestHandler<StartMenuRequest,HandlerResult
             return null;
         }
 
-        var session = Dictionaries.UserSessions.GetOrAdd(
+        var session = UserSessionsStore.UserSessions.GetOrAdd(
             request.ChatId,
             _ => new UserSession());
         session.UserState = UserStates.Start;
@@ -31,7 +31,7 @@ public class StartMenuHandler() : IRequestHandler<StartMenuRequest,HandlerResult
         {
             InlineKeyboardButton.WithCallbackData("📄 Новый рецепт", "add_recipe"),
             InlineKeyboardButton.WithCallbackData("📄 Мои рецепты", "my_recipe"),
-            InlineKeyboardButton.WithCallbackData("⚙️ Настройки", "confirm_no")
+           // InlineKeyboardButton.WithCallbackData("⚙️ Настройки", "confirm_no")
         };
         return new HandlerResult("Выберите действие:",new InlineKeyboardMarkup(buttons));
     }
