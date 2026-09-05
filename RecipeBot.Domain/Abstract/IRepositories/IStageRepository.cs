@@ -1,4 +1,4 @@
-﻿using MyRecipeDomain.Models;
+﻿using RecipeBot.Domain.Models;
 
 namespace RecipeBot.Domain.Abstract.IRepositories;
 

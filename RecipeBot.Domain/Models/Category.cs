@@ -1,4 +1,4 @@
-﻿namespace MyRecipeDomain.Models;
+﻿namespace RecipeBot.Domain.Models;
 
 public class Category
 {

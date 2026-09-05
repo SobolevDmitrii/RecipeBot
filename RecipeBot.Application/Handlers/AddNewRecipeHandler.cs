@@ -1,8 +1,8 @@
 ﻿using MediatR;
-using MyRecipeDomain.Models;
 using RecipeBot.Application.Models;
 using RecipeBot.Domain.Abstract.IRepositories;
 using RecipeBot.Domain.Enums;
+using RecipeBot.Domain.Models;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace RecipeBot.Application.Handlers;

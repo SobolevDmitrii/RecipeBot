@@ -1,5 +1,5 @@
-﻿using MyRecipeDomain.Models;
-using RecipeBot.Domain.Enums;
+﻿using RecipeBot.Domain.Enums;
+using RecipeBot.Domain.Models;
 
 namespace RecipeBot.Application.Models;
 

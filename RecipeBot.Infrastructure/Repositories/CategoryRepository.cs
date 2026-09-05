@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using MyRecipeDomain.Models;
 using RecipeBot.Domain.Abstract.IRepositories;
+using RecipeBot.Domain.Models;
 
 namespace RecipeBot.Infrastructure.Repositories;
 

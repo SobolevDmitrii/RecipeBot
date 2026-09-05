@@ -101,7 +101,7 @@ public class GetUserRecipesHandler(IRecipeRepository recipeRepository ,
 
     private async Task<HandlerResult?> ViewRecipe(long chatId, int recipeId, CancellationToken cancellationToken)
     {
-        var recipe = await recipeRepository.Get(recipeId, cancellationToken);
+        var recipe = await recipeRepository.Get(chatId,recipeId, cancellationToken);
         UserSessionsStore.UserSessions[chatId].CurrentViewRecipe = recipe;
         var buttons = new[]
         {
@@ -143,7 +143,7 @@ public class GetUserRecipesHandler(IRecipeRepository recipeRepository ,
     private async Task<HandlerResult?> RemoveRecipe(long chatId, int recipeId,
         CancellationToken cancellationToken)
     {
-        await recipeRepository.Delete(recipeId, cancellationToken);
+        await recipeRepository.Delete(chatId,recipeId, cancellationToken);
         UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.ShowRecipeSelectionOptions;
         return ShowRecipeSelectionOptions(chatId);
     }
@@ -156,7 +156,7 @@ public class GetUserRecipesHandler(IRecipeRepository recipeRepository ,
     
     private async Task<HandlerResult?> SearchByName(long chatId, string text ,CancellationToken cancellationToken)
     {
-        var recipes =  await recipeRepository.SearchByName(text,cancellationToken);
+        var recipes =  await recipeRepository.SearchByName(chatId, text, cancellationToken);
         
         var buttons = CreateRecipePagination.CreatePagination(
             recipes,

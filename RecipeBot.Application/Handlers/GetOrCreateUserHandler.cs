@@ -1,7 +1,7 @@
 ﻿using MediatR;
 using RecipeBot.Domain.Abstract.IRepositories;
 using Telegram.Bot.Types;
-using User = MyRecipeDomain.Models.User;
+using User = RecipeBot.Domain.Models.User;
 
 namespace RecipeBot.Application.Handlers;
 

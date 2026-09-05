@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using MyRecipeDomain.Models;
 using RecipeBot.Domain.Abstract.IRepositories;
+using RecipeBot.Domain.Models;
 
 namespace RecipeBot.Infrastructure.Repositories;
 
@@ -22,44 +22,50 @@ public class RecipeRepository(IDbContextFactory<MyRecipeDbContext> contextFactor
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
         return await context.Recipes
             .Include(r => r.User)
-            .Where(q=>q.User.TelegramId == chatId)
+            .Where(q => q.User.TelegramId == chatId)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<List<Recipe>> GetListByTelegramIdAndCategory(long chatId, int categoryId, CancellationToken cancellationToken)
+    public async Task<List<Recipe>> GetListByTelegramIdAndCategory(long chatId, int categoryId,
+        CancellationToken cancellationToken)
     {
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
         return await context.Recipes
             .Include(r => r.User)
-            .Where(q=>q.User.TelegramId == chatId && q.CategoryId == categoryId)
+            .Where(q => q.User.TelegramId == chatId && q.CategoryId == categoryId)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<List<Recipe>> SearchByName( string text, CancellationToken cancellationToken)
+    public async Task<List<Recipe>> SearchByName(long chatId, string text, CancellationToken cancellationToken)
     {
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
         return await context.Recipes
-            .Where(q=>q.Name.ToLower().Contains(text.ToLower()))
+            .Include(r => r.User)
+            .Where(q => q.Name.ToLower().Contains(text.ToLower())
+                        && q.User.TelegramId == chatId)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<Recipe> Get(int id, CancellationToken cancellationToken)
+    public async Task<Recipe> Get(long chatId, int id, CancellationToken cancellationToken)
     {
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
         return await context.Recipes
-            .Include(q=>q.Stages)
-            .Include(q=>q.Category)
+            .Include(q => q.Stages)
+            .Include(q => q.Category)
+            .Include(r => r.User)
             .AsNoTracking()
-            .SingleAsync(q => q.Id == id, cancellationToken);
+            .SingleAsync(q => q.Id == id && q.User.TelegramId == chatId, cancellationToken);
     }
 
-    public async Task Delete(int id, CancellationToken cancellationToken)
+    public async Task Delete(long chatId, int id, CancellationToken cancellationToken)
     {
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
-        var recipe = await context.Recipes.SingleAsync(q => q.Id == id, cancellationToken);
+        var recipe = await context.Recipes
+            .Include(r => r.User)
+            .SingleAsync(q => q.Id == id && q.User.TelegramId == chatId, cancellationToken);
         context.Recipes.Remove(recipe);
         await context.SaveChangesAsync(cancellationToken);
     }

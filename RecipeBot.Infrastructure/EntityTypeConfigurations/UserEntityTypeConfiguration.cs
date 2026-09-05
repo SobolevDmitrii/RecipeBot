@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using MyRecipeDomain.Models;
+using RecipeBot.Domain.Models;
 
 namespace RecipeBot.Infrastructure.EntityTypeConfigurations;
 
