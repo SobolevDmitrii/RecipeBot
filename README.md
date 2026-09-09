@@ -5,7 +5,8 @@
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet\&logoColor=white)](https://dotnet.microsoft.com/)
 [![C#](https://img.shields.io/badge/C%23-14-239120?logo=csharp\&logoColor=white)](https://learn.microsoft.com/dotnet/csharp/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql\&logoColor=white)](https://www.postgresql.org/)
-[![Entity Framework Core](https://img.shields.io/badge/EF%20Core-10-512BD4?logo=dotnet\&logoColor=white)](https://learn.microsoft.com/ef/core/)
+[![EF Core](https://img.shields.io/badge/EF%20Core-10-512BD4?logo=dotnet\&logoColor=white)](https://learn.microsoft.com/ef/core/)
+[![Redis](https://img.shields.io/badge/Redis-8-DC382D?logo=redis\&logoColor=white)](https://redis.io/)
 [![Docker](https://img.shields.io/badge/Docker-supported-2496ED?logo=docker\&logoColor=white)](https://www.docker.com/)
 [![Telegram Bot API](https://img.shields.io/badge/Telegram-Bot%20API-26A5E4?logo=telegram\&logoColor=white)](https://core.telegram.org/bots/api)
 [![Архитектура](https://img.shields.io/badge/архитектура-Clean%20Architecture-success)](#архитектура)
@@ -14,138 +15,126 @@
 
 ## 📌 О проекте
 
-**Recipe Telegram Bot** — pet-проект на современном .NET, предназначенный для создания и хранения рецептов непосредственно через Telegram.
+**Recipe Telegram Bot** — pet-проект на современном .NET для создания, хранения и просмотра рецептов непосредственно через Telegram.
 
-Пользователь взаимодействует с ботом пошагово:
+Проект демонстрирует построение backend-приложения с разделением ответственности между слоями, пользовательскими state-based сценариями, PostgreSQL для постоянного хранения данных и Redis для хранения пользовательских сессий.
 
-* создаёт новый рецепт;
-* указывает название;
-* выбирает категорию;
-* добавляет ингредиенты;
-* добавляет фотографию блюда;
-* создаёт этапы приготовления;
-* при необходимости добавляет фотографию к каждому этапу;
-* сохраняет рецепт;
-* просматривает ранее созданные рецепты;
-* ищет рецепты;
-* фильтрует рецепты по категории;
-* просматривает этапы приготовления;
-* удаляет рецепты.
+### Основные возможности
 
-Основная задача проекта — не только интеграция с Telegram Bot API, но и практическое применение современных подходов backend-разработки:
+* создание рецептов;
+* выбор категории;
+* добавление ингредиентов;
+* добавление фотографии рецепта;
+* добавление этапов приготовления;
+* добавление фотографии к этапу;
+* просмотр собственных рецептов;
+* поиск рецептов по названию;
+* фильтрация по категории;
+* пагинация;
+* просмотр этапов приготовления;
+* удаление рецептов;
+* хранение пользовательских сессий в Redis.
 
-* Clean Architecture;
-* Dependency Injection;
-* MediatR;
-* Entity Framework Core;
-* PostgreSQL;
-* Repository pattern;
-* state-based пользовательские сценарии;
-* доменная инкапсуляция;
-* BackgroundService;
-* асинхронное программирование;
-* Docker.
-
-Несмотря на небольшой предметный домен, проект использует полноценное разделение ответственности между слоями приложения и демонстрирует работу с:
-
-* внешним API;
-* базой данных;
-* пользовательскими сценариями;
-* состоянием приложения;
-* асинхронным программированием;
-* контейнеризацией.
-
-Проект предназначен для учебных и портфолио-целей.
+Проект создан в учебных и портфолио-целях.
 
 ---
+# 🎯 Цели проекта
 
+Основная цель проекта — практическое применение современных подходов backend-разработки на .NET.
+
+В проекте используются:
+
+* Clean Architecture;
+* domain-oriented подход;
+* Dependency Injection;
+* MediatR;
+* Repository pattern;
+* state-based пользовательские сценарии;
+* Entity Framework Core;
+* PostgreSQL;
+* Redis;
+* асинхронное программирование;
+* BackgroundService;
+* интеграция с Telegram Bot API;
+* callback-based навигация;
+* Docker;
+* DTO и сериализация состояния.
+
+Проект предназначен для демонстрации практических навыков .NET backend-разработки.
+
+---
 # ✨ Возможности
 
 ## 📝 Создание рецепта
 
-Пользователь проходит последовательный сценарий создания:
+Пользователь проходит последовательный сценарий:
 
 ```text
 /start
    │
    ▼
-┌─────────────────────┐
-│    Главное меню     │
-└──────────┬──────────┘
-           │
-           ▼
-      Новый рецепт
-           │
-           ▼
-    Название рецепта
-           │
-           ▼
-        Категория
-           │
-           ▼
-       Ингредиенты
-           │
-           ▼
-      Фото блюда
-       (опционально)
-           │
-           ▼
-  Этапы приготовления
-           │
-           ▼
-       Завершение
-           │
-           ▼
-      PostgreSQL
+Главное меню
+   │
+   ▼
+Новый рецепт
+   │
+   ▼
+Название
+   │
+   ▼
+Категория
+   │
+   ▼
+Ингредиенты
+   │
+   ▼
+Фото рецепта
+(опционально)
+   │
+   ▼
+Этапы приготовления
+   │
+   ▼
+Сохранение
+   │
+   ▼
+PostgreSQL
 ```
 
-Поддерживается:
+Каждый этап приготовления содержит:
 
-* создание рецепта;
-* выбор категории;
-* добавление ингредиентов;
-* добавление фотографии блюда;
-* добавление одного или нескольких этапов;
-* добавление фотографии к этапу;
-* завершение создания рецепта;
-* сохранение рецепта в PostgreSQL.
+* обязательное описание;
+* фотографию — опционально.
+
+Фотография рецепта и фотография этапа являются разными сценариями state machine.
 
 ---
 
 ## 📚 Мои рецепты
 
-В разделе **«Мои рецепты»** пользователь может работать с уже сохранёнными рецептами.
+В разделе **«Мои рецепты»** доступны:
 
-Доступны:
-
-* просмотр всех своих рецептов;
+* просмотр собственных рецептов;
 * поиск по полному или частичному названию;
 * фильтрация по категории;
 * постраничная навигация;
-* выбор конкретного рецепта;
-* просмотр информации о рецепте;
+* просмотр выбранного рецепта;
 * просмотр этапов приготовления;
 * удаление рецепта.
 
 ---
 
-## 🔎 Поиск рецептов
+## 🔎 Поиск
 
 Поддерживается поиск рецептов по полному или частичному названию.
 
-Например:
-
-```text
-Введите полное и частичное наименование рецепта.
-```
-
-После выполнения поиска пользователь получает список найденных рецептов с постраничной навигацией.
+После выполнения поиска пользователь получает найденные рецепты с возможностью постраничной навигации.
 
 ---
 
-## 📂 Фильтрация по категории
+## 📂 Фильтрация
 
-Пользователь может выбрать категорию и получить список принадлежащих ей рецептов.
+Рецепты можно фильтровать по категории.
 
 Пример:
 
@@ -162,135 +151,74 @@
 
 ## 📄 Пагинация
 
-Список рецептов разбивается на страницы.
+Для навигации используются callback-запросы.
 
-Для навигации используются callback-данные:
+Примеры:
 
 ```text
 recipes:page:0
 recipes:page:1
-recipes:page:2
-```
-
-Выбор конкретного рецепта использует отдельный callback:
-
-```text
 recipe:view:15
+recipe:stage:2
 ```
-
-Для просмотра конкретного этапа:
-
-```text
-recipe:stage:15:2
-```
-
-Где:
-
-```text
-15 — идентификатор рецепта
-2  — индекс этапа
-```
-
-Такой подход позволяет однозначно определить действие пользователя без необходимости хранить номер страницы или выбранный рецепт в каждом callback.
-
----
-
-## 📖 Просмотр рецепта
-
-После выбора рецепта пользователь получает основную информацию:
-
-```text
-🍲 Борщ
-
-📂 Категория: Супы
-
-🥕 Ингредиенты:
-Картофель
-Морковь
-Свёкла
-Капуста
-...
-
-👨‍🍳 Этапов приготовления: 6
-
-[ 👁️ Просмотреть этапы ]
-[ 🗑️ Удалить ]
-[ ↩️ Назад ]
-```
-
----
-
-## 👨‍🍳 Просмотр этапов
-
-Этапы отображаются последовательно.
-
-```text
-👨‍🍳 Борщ — этап 1 / 6
-
-Нарезать овощи и подготовить мясо.
-
-◀️    1 / 6    ▶️
-
-[ ↩️ К рецепту ]
-```
-
-Для навигации используется callback:
-
-```text
-recipe:stage:{recipeId}:{stageIndex}
-```
-
-Если у этапа есть фотография, она отправляется вместе с описанием.
-
----
 
 ## 📷 Работа с фотографиями
 
 Фотография может быть добавлена:
 
 * к самому рецепту;
-* к отдельному этапу приготовления.
+* к этапу приготовления.
 
-Фото этапа **не является самостоятельным этапом**.
+При этом фотография этапа **не является самостоятельным этапом**.
 
 Корректный сценарий:
 
 ```text
-📝 Описание этапа
-        +
-📷 Фотография
-        ↓
-    Один Stage
+Описание этапа
+      +
+Фотография (опционально)
+      ↓
+    Stage
 ```
 
-Таким образом, каждый этап всегда содержит описание, а фотография является дополнительными данными.
+Описание этапа является обязательным, фотография — дополнительной информацией.
 
 ---
 
 # 🏗 Архитектура
 
-Проект построен с использованием принципов **Clean Architecture** и разделён на несколько слоёв.
+Проект использует принципы **Clean Architecture** и разделён на четыре основных слоя:
 
-```mermaid
-flowchart TB
-    Telegram["RecipeBot.Telegram<br/>Telegram integration"]
-    Application["RecipeBot.Application<br/>Application logic / Handlers"]
-    Domain["RecipeBot.Domain<br/>Domain model / abstractions"]
-    Infrastructure["RecipeBot.Infrastructure<br/>EF Core / PostgreSQL"]
-    Database[("PostgreSQL")]
-
-    Telegram --> Application
-    Telegram --> Infrastructure
-    Application --> Domain
-    Infrastructure --> Domain
-    Infrastructure --> Database
+```text
+┌───────────────────────────────┐
+│       RecipeBot.Telegram      │
+│   Telegram Bot API / Hosting  │
+└───────────────┬───────────────┘
+                │
+                ▼
+┌───────────────────────────────┐
+│      RecipeBot.Application    │
+│   Handlers / State Machine    │
+│      DTO / User Session       │
+└───────┬─────────────────┬─────┘
+        │                 │
+        ▼                 ▼
+┌───────────────┐   ┌────────────────────┐
+│ RecipeBot.    │   │ RecipeBot.         │
+│ Domain        │   │ Infrastructure     │
+│               │   │                    │
+│ Entities      │   │ EF Core / Redis    │
+│ Interfaces    │   │ Repositories       │
+└───────────────┘   └─────────┬──────────┘
+                              │
+                    ┌─────────┴─────────┐
+                    ▼                   ▼
+               PostgreSQL             Redis
 ```
-
-## Слои проекта
 
 ### `RecipeBot.Domain`
 
-Содержит бизнес-модель приложения и абстракции:
+Содержит предметную область:
 
 * `User`;
 * `Recipe`;
@@ -299,13 +227,21 @@ flowchart TB
 * интерфейсы репозиториев;
 * состояния пользовательских сценариев.
 
-Доменный слой не зависит от конкретной базы данных.
+Доменная модель содержит методы изменения состояния и проверки инвариантов.
+
+Например:
+
+```csharp
+recipe.SetName(name);
+recipe.SetIngredients(ingredients);
+recipe.AddStage(stage);
+```
 
 ---
 
 ### `RecipeBot.Application`
 
-Содержит прикладные сценарии и application logic.
+Содержит прикладную логику и пользовательские сценарии.
 
 Основные компоненты:
 
@@ -314,24 +250,24 @@ flowchart TB
 * `StartMenuHandler`;
 * `GetOrCreateUserHandler`;
 * `UserSession`;
-* `HandlerResult`;
+* DTO;
 * пагинация рецептов;
-* пагинация этапов.
+* пагинация этапов;
+* state machine.
 
-Для маршрутизации application-сценариев используется **MediatR**.
+Для обработки application requests используется **MediatR**.
 
 ---
 
 ### `RecipeBot.Infrastructure`
 
-Отвечает за работу с PostgreSQL.
-
-Используются:
+Отвечает за внешние инфраструктурные зависимости:
 
 * Entity Framework Core;
-* Npgsql;
-* `IDbContextFactory`;
-* Repository pattern;
+* PostgreSQL;
+* Redis;
+* `StackExchange.Redis`;
+* repositories;
 * EF Core migrations;
 * Entity Type Configurations.
 
@@ -349,14 +285,15 @@ TelegramBotService
 
 Он:
 
-1. получает обновления Telegram;
-2. определяет тип входящего события;
-3. формирует application request;
-4. передаёт его через MediatR;
-5. получает результат;
-6. отправляет ответ пользователю.
+1. получает Telegram updates;
+2. определяет тип события;
+3. определяет состояние пользовательского сценария;
+4. формирует application request;
+5. передаёт request через MediatR;
+6. получает результат;
+7. отправляет ответ пользователю.
 
-Для получения обновлений используются:
+В настоящий момент обрабатываются:
 
 ```text
 Message
@@ -365,111 +302,11 @@ CallbackQuery
 
 ---
 
-# 📂 Структура проекта
+# 🧠 Управление состоянием
 
-```text
-RecipeBot/
-│
-├── RecipeBot.Domain/
-│   ├── Abstract/
-│   │   └── IRepositories/
-│   │       ├── ICategoryRepository.cs
-│   │       ├── IRecipeRepository.cs
-│   │       ├── IStageRepository.cs
-│   │       └── IUsersRepository.cs
-│   │
-│   ├── Enums/
-│   │   └── States.cs
-│   │
-│   └── Models/
-│       ├── Category.cs
-│       ├── Recipe.cs
-│       ├── Stage.cs
-│       └── User.cs
-│
-├── RecipeBot.Application/
-│   ├── Handlers/
-│   │   ├── AddNewRecipeHandler.cs
-│   │   ├── GetOrCreateUser.cs
-│   │   ├── GetUserRecipesHandler.cs
-│   │   └── StatMenu.cs
-│   │
-│   ├── Models/
-│   │   ├── HandlerResult.cs
-│   │   └── UserSession.cs
-│   │
-│   ├── CreateRecipePagination.cs
-│   ├── CreateStagePagination.cs
-│   ├── UserSessionsStore.cs
-│   ├── ApplicationExtension.cs
-│   └── ...
-│
-├── RecipeBot.Infrastructure/
-│   ├── EntityTypeConfigurations/
-│   ├── Migrations/
-│   ├── Repositories/
-│   ├── InfraDataExtensions.cs
-│   └── MyRecipeDbContext.cs
-│
-├── RecipeBot.Telegram/
-│   ├── BackGroundServices/
-│   │   └── TelegramBotService.cs
-│   ├── Program.cs
-│   ├── Dockerfile
-│   └── appsettings.json
-│
-├── compose.yaml
-├── CHANGELOG.md
-├── LICENSE
-└── RecipeBot.sln
-```
+Взаимодействие с пользователем построено на state machine.
 
----
-
-# 🔄 Взаимодействие компонентов
-
-Общий сценарий обработки сообщения:
-
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant T as Telegram
-    participant B as TelegramBotService
-    participant M as MediatR
-    participant H as Application Handler
-    participant R as Repository
-    participant DB as PostgreSQL
-
-    U->>T: Message / Callback
-    T->>B: Update
-    B->>M: Request
-    M->>H: Handler
-    H->>R: Query
-    R->>DB: EF Core
-    DB-->>R: Data
-    R-->>H: Data
-    H-->>M: HandlerResult
-    M-->>B: Result
-    B->>T: Response
-    T-->>U: Message / Photo / Keyboard
-```
-
-Такой подход позволяет разделить:
-
-* Telegram-интеграцию;
-* application logic;
-* domain model;
-* persistence.
-
----
-
-# 🧠 Управление состоянием пользователя
-
-Создание и просмотр рецептов являются state-based сценариями.
-
-Для каждого Telegram `ChatId` создаётся пользовательская сессия.
-
-Сессия используется для хранения временного состояния взаимодействия:
+Для каждого `ChatId` хранится `UserSession`.
 
 ```text
 UserSession
@@ -481,87 +318,116 @@ UserSession
     └── Recipes
 ```
 
-Сессия может содержать:
+Сессия используется для хранения временного состояния пользовательского сценария.
 
-* текущее состояние пользователя;
-* состояние сценария работы с рецептами;
-* черновик создаваемого рецепта;
+Например:
+
+* состояние пользователя;
+* состояние создания рецепта;
+* черновик рецепта;
 * текущий просматриваемый рецепт;
-* список рецептов для текущего сценария пагинации.
+* данные для текущей пагинации.
 
-Активные сессии хранятся в памяти приложения.
+### Redis
 
-Для доступа к ним используется потокобезопасная коллекция:
+Сессии хранятся в **Redis**, а не в памяти процесса.
 
-```csharp
-ConcurrentDictionary<long, UserSession>
+Это позволяет не привязывать состояние пользователя к конкретному экземпляру приложения.
+
+Сессия сериализуется в JSON и сохраняется в Redis через отдельный `IRedisService`.
+
+```text
+Telegram
+    │
+    ▼
+UserSessionStore
+    │
+    ▼
+IRedisService
+    │
+    ▼
+Redis
 ```
 
-Временное состояние пользовательского сценария при этом отделено от постоянных данных PostgreSQL.
+Для Redis используется `StackExchange.Redis` и singleton `IConnectionMultiplexer`.
 
 ---
 
-# 🔀 Состояния создания рецепта
+# 🔀 State Machine
 
-Основные состояния сценария:
+Создание рецепта построено как последовательность состояний:
 
-```mermaid
-stateDiagram-v2
-    [*] --> Start
-
-    Start --> WaitingForRecipeName: Новый рецепт
-
-    WaitingForRecipeName --> WaitingForCategory
-    WaitingForCategory --> WaitingForIngredients
-    WaitingForIngredients --> WaitingMove
-
-    WaitingMove --> WaitingForImageRecipe: Фото блюда
-    WaitingMove --> AddingStage: Добавить этап
-
-    WaitingForImageRecipe --> WaitingMove
-
-    AddingStage --> AddingStage: Следующий этап
-    AddingStage --> WaitingMove: Этап добавлен
-
-    WaitingMove --> Start: Отмена
-    AddingStage --> Start: Отмена
-    WaitingMove --> [*]: Завершить
+```text
+WaitingForRecipeName
+        │
+        ▼
+WaitingForCategory
+        │
+        ▼
+WaitingForIngredients
+        │
+        ▼
+WaitingMove
+     ┌──┴──────────────┐
+     │                 │
+     ▼                 ▼
+WaitingForImageRecipe  AddingStage
+     │                 │
+     ▼                 ▼
+WaitingMove        AddingStage
+                       │
+                       ▼
+                   WaitingMove
 ```
 
-Явные состояния позволяют определить, как интерпретировать следующее сообщение пользователя.
+Состояние определяет, как интерпретировать следующее сообщение пользователя.
+
+Например:
+
+```text
+WaitingForImageRecipe
+```
+
+ожидает фотографию основного изображения рецепта.
+
+А:
+
+```text
+AddingStage
+```
+
+ожидает описание нового этапа и, при необходимости, фотографию вместе с ним.
+
+Такой подход позволяет не передавать всю информацию о текущем сценарии в каждом Telegram callback.
 
 ---
 
 # 🔘 Callback routing
 
-Для взаимодействия с inline-клавиатурами используется структурированный формат callback-данных.
+Для inline-клавиатур используются callback-данные.
 
 Примеры:
 
 ```text
 recipe:list:0
 recipe:view:15
-recipe:stage:15:2
+recipe:stage2
 recipe:delete:15
 recipe:back
 ```
 
-Первый и второй сегменты определяют область и действие:
+Структура callback позволяет определить:
 
 ```text
-recipe:view:15
-│      │     │
-│      │     └── RecipeId
-│      └──────── Action
-└─────────────── Entity
+Entity
+Action
+Parameters
 ```
-
-Для callback с дополнительными параметрами используется разбор отдельных сегментов.
 
 Например:
 
 ```text
-recipe:stage:15:2
+recipe:stage:2
 ```
 
 означает:
@@ -569,63 +435,92 @@ recipe:stage:15:2
 ```text
 Entity     = recipe
 Action     = stage
-RecipeId   = 15
 StageIndex = 2
 ```
 
-Такой формат позволяет расширять навигацию без хранения всего контекста в пользовательской сессии.
+---
+
+# 🗄 Хранение данных
+
+## PostgreSQL
+
+PostgreSQL используется для постоянного хранения:
+
+```text
+User
+  │
+  └── Recipe
+         │
+         ├── Category
+         │
+         └── Stage
+```
+
+Для работы с PostgreSQL используется:
+
+* Entity Framework Core 10;
+* Npgsql;
+* `IDbContextFactory`;
+* Repository pattern;
+* EF Core migrations;
+* Entity Type Configurations.
 
 ---
 
-# 🧩 Доменная модель
+## Redis
 
-Основные связи между сущностями:
+Redis используется для временного состояния пользовательских сценариев.
 
-```mermaid
-erDiagram
-    USER ||--o{ RECIPE : creates
-    CATEGORY ||--o{ RECIPE : contains
-    RECIPE ||--o{ STAGE : consists_of
+В Redis хранится сериализованный `UserSession`.
 
-    USER {
-        int Id
-        long TelegramId
-        string Name
-    }
+Постоянные данные рецептов в Redis не хранятся — они находятся в PostgreSQL.
 
-    CATEGORY {
-        int Id
-        string Name
-    }
+---
 
-    RECIPE {
-        int Id
-        string Name
-        string UrlImage
-        string Ingredients
-        int UserId
-        int CategoryId
-    }
+# 📂 Структура проекта
 
-    STAGE {
-        int Id
-        int Number
-        string Description
-        string UrlImage
-        int RecipeId
-    }
+```text
+RecipeBot/
+│
+├── RecipeBot.Domain/
+│   ├── Abstract/
+│   │   └── IRepositories/
+│   ├── Enums/
+│   └── Models/
+│
+├── RecipeBot.Application/
+│   ├── Abstract/
+│   ├── Handlers/
+│   ├── Mappers/
+│   ├── Models/
+│   ├── CreateRecipePagination.cs
+│   ├── CreateStagePagination.cs
+│   ├── MessageBaseRequest.cs
+│   ├── UserSessinsStore.cs
+│   └── ApplicationExtension.cs
+│
+├── RecipeBot.Infrastructure/
+│   ├── EntityTypeConfigurations/
+│   ├── Migrations/
+│   ├── Redis/
+│   ├── Repositories/
+│   ├── InfraDataExtensions.cs
+│   └── MyRecipeDbContext.cs
+│
+├── RecipeBot.Telegram/
+│   ├── BackGroundServices/
+│   │   └── TelegramBotService.cs
+│   ├── Program.cs
+│   ├── Dockerfile
+│   └── appsettings.json
+│
+├── .env.example
+├── .gitignore
+├── CHANGELOG.md
+├── CONTRIBUTING.md
+├── LICENSE
+└── RecipeBot.sln
 ```
-
-Изменение состояния доменных объектов выполняется через методы:
-
-```csharp
-recipe.SetName(name);
-recipe.SetIngredients(ingredients);
-recipe.SetCategoryId(categoryId);
-recipe.AddStage(stage);
-```
-
-Это позволяет централизовать проверки доменных инвариантов внутри модели.
 
 ---
 
@@ -635,141 +530,85 @@ recipe.AddStage(stage);
 | ---------------------------- | ------------------------------------ |
 | **.NET 10**                  | Платформа приложения                 |
 | **C# 14**                    | Язык программирования                |
-| **Telegram.Bot**             | Работа с Telegram Bot API            |
+| **Telegram.Bot**             | Telegram Bot API                     |
 | **MediatR**                  | Application request/handler pipeline |
 | **Entity Framework Core 10** | ORM                                  |
-| **PostgreSQL**               | Хранение данных                      |
+| **PostgreSQL 18**            | Постоянное хранение данных           |
 | **Npgsql**                   | PostgreSQL provider                  |
+| **Redis**                    | Хранение пользовательских сессий     |
+| **StackExchange.Redis**      | Работа с Redis                       |
 | **Docker**                   | Контейнеризация                      |
-| **Docker Compose**           | Управление контейнерами              |
-
----
-
-# 💾 Работа с базой данных
-
-Для работы с PostgreSQL используется Entity Framework Core.
-
-Приложение использует:
-
-```csharp
-IDbContextFactory<MyRecipeDbContext>
-```
-
-Контекст создаётся непосредственно во время выполнения операции:
-
-```csharp
-await using var context =
-    await contextFactory.CreateDbContextAsync(cancellationToken);
-```
-
-Это позволяет не хранить долгоживущий экземпляр `DbContext` внутри репозитория.
-
-Для изменения структуры базы данных используются EF Core Migrations.
+| **DotNetEnv**                | Загрузка переменных окружения        |
 
 ---
 
 # 💉 Dependency Injection
 
-Регистрация компонентов приложения разделена по слоям.
+Регистрация зависимостей разделена по слоям.
 
-Основной `Program.cs`:
+`Program.cs`:
 
-```text
-Program.cs
-    │
-    ├── AddApplication()
-    │
-    ├── AddInfra()
-    │
-    └── AddHostedService<TelegramBotService>()
+```csharp
+Env.Load();
+
+var builder = Host.CreateApplicationBuilder(args);
+
+var configuration = builder.Configuration;
+
+builder.Services.AddApplication(configuration);
+builder.Services.AddInfra(configuration);
+
+builder.Services.AddHostedService<TelegramBotService>();
+
+var app = builder.Build();
+
+app.Run();
 ```
-
-Application регистрирует MediatR и Telegram client.
 
 Infrastructure регистрирует:
 
 * `DbContextFactory`;
 * repositories;
-* database configuration.
+* Redis;
+* `IConnectionMultiplexer`;
+* `IRedisService`.
 
-Telegram layer регистрирует `TelegramBotService` как hosted service.
-
----
-
-# 🐳 Docker
-
-Telegram-приложение собирается с использованием multi-stage Docker build.
+Telegram layer регистрирует:
 
 ```text
-┌───────────────────────┐
-│ .NET SDK              │
-│ Restore + Build       │
-└───────────┬───────────┘
-            │
-            ▼
-┌───────────────────────┐
-│ Published application │
-└───────────┬───────────┘
-            │
-            ▼
-┌───────────────────────┐
-│ .NET Runtime          │
-│ RecipeBot.Telegram    │
-└───────────────────────┘
+TelegramBotService
 ```
 
-Запуск:
-
-```bash
-docker compose up --build
-```
-
-Остановка:
-
-```bash
-docker compose down
-```
-
-> Текущий `compose.yaml` содержит сервис приложения. PostgreSQL не определён отдельным Docker Compose сервисом.
+как `HostedService`.
 
 ---
 
 # ⚙️ Конфигурация
 
-Для работы приложения необходимы:
+Для локальной разработки используется `.env`.
 
-* токен Telegram-бота;
-* строка подключения к PostgreSQL.
+В репозитории хранится только `.env.example`.
 
-Пример конфигурации:
+Основные параметры:
 
-```json
-{
-  "TelegramApiToken": "YOUR_TELEGRAM_BOT_TOKEN",
-  "ConnectionStrings": {
-    "MyRecipeDb": "Server=localhost;Port=5432;Database=myrecipedb;User Id=myuser;Password=mypassword;"
-  }
-}
+```env
+TelegramApiToken=
+
+ConnectionStrings__MyRecipeDb=
+
+Redis__ConnectionString=
+Redis__User=
+Redis__Password=
+Redis__Database=
 ```
 
-## 🔐 Безопасность
+> Реальный `.env` не должен попадать в Git-репозиторий.
 
-Реальные секреты **не должны храниться в Git-репозитории**.
-
-Для локальной разработки рекомендуется использовать:
-
-* .NET User Secrets;
-* переменные окружения.
-
-Для Docker/production:
-
-* environment variables;
-* Docker Secrets;
-* внешний менеджер секретов.
+Для Docker и production рекомендуется использовать environment variables или Docker Secrets / внешний менеджер секретов.
 
 ---
 
-# 🗄 Миграции базы данных
+# 🗄 Миграции
 
 Применить существующие миграции:
 
@@ -796,9 +635,11 @@ dotnet ef migrations add MigrationName \
 Перед запуском необходимо установить:
 
 * .NET 10 SDK;
-* PostgreSQL;
-* Docker — опционально;
+* PostgreSQL 18;
+* Redis;
 * Telegram-бота, созданного через BotFather.
+
+Docker можно использовать для запуска инфраструктуры.
 
 ---
 
@@ -824,7 +665,9 @@ dotnet ef database update \
   --startup-project RecipeBot.Telegram
 ```
 
-Запустить приложение:
+Настроить `.env` на основе `.env.example`.
+
+Запустить:
 
 ```bash
 dotnet run --project RecipeBot.Telegram
@@ -834,87 +677,95 @@ dotnet run --project RecipeBot.Telegram
 
 ---
 
-## Запуск через Docker
+# 🐳 Docker
 
-```bash
-docker compose up --build
+Для Telegram-приложения используется multi-stage Docker build.
+
+```text
+.NET SDK
+   │
+   ├── Restore
+   ├── Build
+   └── Publish
+        │
+        ▼
+.NET Runtime
+   │
+   ▼
+RecipeBot.Telegram
 ```
 
-Для остановки:
+Сборка Docker image:
 
 ```bash
-docker compose down
+docker build \
+  -f RecipeBot.Telegram/Dockerfile \
+  -t recipebot .
 ```
+
+Запуск контейнера:
+
+```bash
+docker run --rm recipebot
+```
+
+> В текущей версии репозитория отдельного `compose.yaml` нет, поэтому README не предполагает запуск проекта через `docker compose`.
+
+PostgreSQL и Redis могут запускаться отдельно через Docker или локально.
 
 ---
 
-# 🧪 Разработка
+# 🔐 Безопасность
 
-Основные команды:
+Не храните в Git:
 
-```bash
-# Восстановление зависимостей
-dotnet restore
+* Telegram Bot Token;
+* пароли PostgreSQL;
+* пароли Redis;
+* другие секреты.
 
-# Сборка
-dotnet build
+Для локальной разработки используются переменные окружения.
 
-# Запуск
-dotnet run --project RecipeBot.Telegram
+Для production рекомендуется использовать:
 
-# Запуск тестов
-dotnet test
-```
+* environment variables;
+* Docker Secrets;
+* Vault или другой внешний secret manager.
 
 ---
 
 # 📈 Возможные направления развития
 
-Текущая функциональность проекта уже включает создание, просмотр, поиск, фильтрацию, пагинацию и удаление рецептов.
+Текущая версия уже поддерживает:
 
-Возможные следующие направления развития:
+* создание рецептов;
+* фотографии;
+* категории;
+* поиск;
+* фильтрацию;
+* пагинацию;
+* просмотр рецептов;
+* просмотр этапов;
+* удаление;
+* Redis-сессии.
+
+Возможные дальнейшие улучшения:
 
 * редактирование существующих рецептов;
-* подтверждение удаления рецепта;
-* более развитая навигация между разделами;
-* переход от хранения пользовательских сессий в памяти к Redis;
-* вынесение изображений во внешнее файловое хранилище;
-* покрытие Application и Domain логики unit-тестами;
+* подтверждение удаления;
+* unit-тесты Application и Domain;
+* integration-тесты PostgreSQL/Redis;
 * централизованная обработка ошибок;
 * structured logging;
-* CI/CD;
-* production-ready Docker Compose;
+* OpenTelemetry;
 * health checks;
-* мониторинг приложения.
-
----
-
-# 🎯 Цели проекта
-
-Основная цель проекта — практическое применение современных подходов backend-разработки на .NET.
-
-В проекте отрабатываются:
-
-* Clean Architecture;
-* Domain-driven подход к модели;
-* Dependency Injection;
-* MediatR;
-* Repository pattern;
-* state-based пользовательские сценарии;
-* Entity Framework Core;
-* PostgreSQL;
-* асинхронное программирование;
-* BackgroundService;
-* интеграция с внешним API;
-* Docker;
-* работа с callback-based навигацией;
-* обработка пользовательского состояния.
-
+* CI/CD;
+* production deployment;
 
 ---
 
 ## 📄 Лицензия
 
-Проект распространяется под лицензией MIT.
+Проект распространяется под лицензией **MIT**.
 
-Подробнее см. [LICENSE](LICENSE).
+Подробнее: [LICENSE](LICENSE).
