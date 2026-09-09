@@ -1,4 +1,5 @@
-﻿using RecipeBot.Domain.Models;
+﻿using RecipeBot.Application.Models;
+using RecipeBot.Domain.Models;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace RecipeBot.Application;
@@ -6,7 +7,7 @@ namespace RecipeBot.Application;
 public class CreateRecipePagination
 {
     public static InlineKeyboardMarkup CreatePagination(
-        IReadOnlyList<Recipe> recipes,
+        IReadOnlyList<RecipeDto> recipes,
         int page,
         int pageSize)
     {

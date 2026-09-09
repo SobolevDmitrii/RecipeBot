@@ -7,7 +7,7 @@ namespace RecipeBot.Application;
 public class CreateStagePagination
 {
     public static HandlerResult CreatePagination(
-        Recipe recipe,
+        RecipeDto recipe,
         int page)
     {
         var totalPages = recipe.Stages.Count;

@@ -1,9 +1,11 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using DotNetEnv;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RecipeBot.Application;
 using RecipeBot.Infrastructure;
 using RecipeBot.Telegram.BackGroundServices;
 
+Env.Load();
 var builder = Host.CreateApplicationBuilder(args);
 
 // Add services to the container.

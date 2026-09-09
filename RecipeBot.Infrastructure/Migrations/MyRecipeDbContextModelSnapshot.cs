@@ -21,7 +21,7 @@ namespace RecipeBot.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("MyRecipeDomain.Models.Category", b =>
+            modelBuilder.Entity("RecipeBot.Domain.Models.Category", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -38,7 +38,7 @@ namespace RecipeBot.Infrastructure.Migrations
                     b.ToTable("Categories");
                 });
 
-            modelBuilder.Entity("MyRecipeDomain.Models.Recipe", b =>
+            modelBuilder.Entity("RecipeBot.Domain.Models.Recipe", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -72,7 +72,7 @@ namespace RecipeBot.Infrastructure.Migrations
                     b.ToTable("Recipes");
                 });
 
-            modelBuilder.Entity("MyRecipeDomain.Models.Stage", b =>
+            modelBuilder.Entity("RecipeBot.Domain.Models.Stage", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -100,7 +100,7 @@ namespace RecipeBot.Infrastructure.Migrations
                     b.ToTable("Stages");
                 });
 
-            modelBuilder.Entity("MyRecipeDomain.Models.User", b =>
+            modelBuilder.Entity("RecipeBot.Domain.Models.User", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -120,20 +120,21 @@ namespace RecipeBot.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TelegramId");
+                    b.HasIndex("TelegramId")
+                        .IsUnique();
 
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("MyRecipeDomain.Models.Recipe", b =>
+            modelBuilder.Entity("RecipeBot.Domain.Models.Recipe", b =>
                 {
-                    b.HasOne("MyRecipeDomain.Models.Category", "Category")
+                    b.HasOne("RecipeBot.Domain.Models.Category", "Category")
                         .WithMany("Recipes")
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("MyRecipeDomain.Models.User", "User")
+                    b.HasOne("RecipeBot.Domain.Models.User", "User")
                         .WithMany("Recipes")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -144,9 +145,9 @@ namespace RecipeBot.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("MyRecipeDomain.Models.Stage", b =>
+            modelBuilder.Entity("RecipeBot.Domain.Models.Stage", b =>
                 {
-                    b.HasOne("MyRecipeDomain.Models.Recipe", "Recipe")
+                    b.HasOne("RecipeBot.Domain.Models.Recipe", "Recipe")
                         .WithMany("Stages")
                         .HasForeignKey("RecipeId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -155,17 +156,17 @@ namespace RecipeBot.Infrastructure.Migrations
                     b.Navigation("Recipe");
                 });
 
-            modelBuilder.Entity("MyRecipeDomain.Models.Category", b =>
+            modelBuilder.Entity("RecipeBot.Domain.Models.Category", b =>
                 {
                     b.Navigation("Recipes");
                 });
 
-            modelBuilder.Entity("MyRecipeDomain.Models.Recipe", b =>
+            modelBuilder.Entity("RecipeBot.Domain.Models.Recipe", b =>
                 {
                     b.Navigation("Stages");
                 });
 
-            modelBuilder.Entity("MyRecipeDomain.Models.User", b =>
+            modelBuilder.Entity("RecipeBot.Domain.Models.User", b =>
                 {
                     b.Navigation("Recipes");
                 });

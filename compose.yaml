@@ -1,7 +1,0 @@
-﻿services:
-  recipebot.telegram:
-    image: recipebot.telegram
-    build:
-      context: .
-      dockerfile: RecipeBot.Telegram/Dockerfile
-

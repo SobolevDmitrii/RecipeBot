@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RecipeBot.Application;
+using RecipeBot.Application.Abstract;
 using RecipeBot.Application.Handlers;
 using RecipeBot.Application.Models;
 using RecipeBot.Domain.Enums;
@@ -16,11 +17,27 @@ namespace RecipeBot.Telegram.BackGroundServices;
 public class TelegramBotService(
     ILogger<TelegramBotService> logger,
     IMediator mediator,
-    ITelegramBotClient botClient)
+    ITelegramBotClient botClient,
+    IUserSessionStore userSessionStore)
     : BackgroundService
 {
-    protected override Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        var commands = new[]
+        {
+            new BotCommand
+            {
+                Command = "start",
+                Description = "Запустить бота"
+            },
+            new BotCommand
+            {
+                Command = "cancel",
+                Description = "Отменить действие"
+            }
+        };
+
+        await botClient.SetMyCommands(commands, cancellationToken: stoppingToken);
         var receiverOptions = new ReceiverOptions
         {
             AllowedUpdates =
@@ -36,7 +53,6 @@ public class TelegramBotService(
             receiverOptions,
             cancellationToken: stoppingToken
         );
-        return Task.CompletedTask;
     }
 
     private async Task HandleUpdateAsync(ITelegramBotClient bot, Update update, CancellationToken cancellationToken)
@@ -58,21 +74,27 @@ public class TelegramBotService(
                 imageFileId = update.Message.Photo.Last().FileId;
             }
 
+            var userSession = await userSessionStore.TryGetSession(chatId);
+            if ( userSession == null )
+            {
+                await mediator.Send(new GetOrCreateUserRequest(update), cancellationToken);
+            }
+
             switch (update.Message?.Text)
             {
                 case "/start":
-                    if (!UserSessionsStore.UserSessions.TryGetValue(update.Message.Chat.Id, out var user))
-                    {
-                        await mediator.Send(new GetOrCreateUserRequest(update), cancellationToken);
-                    }
-
                     result = await mediator.Send(new StartMenuRequest(chatId, text, callbackData), cancellationToken);
+                    break;
+                case "/cancel":
+                    userSession.UserState = UserStates.Cansel;
+                    await userSessionStore.SetUserSession(chatId, userSession);
+                    result = await Cancel(chatId, text, callbackData, cancellationToken);
                     break;
             }
 
-            if (UserSessionsStore.UserSessions.TryGetValue(chatId, out var session))
+            if (userSession != null)
             {
-                switch (session.UserState)
+                switch (userSession.UserState)
                 {
                     case UserStates.Waiting:
                         await bot.DeleteMessage(chatId, update.Message.MessageId, cancellationToken: cancellationToken);
@@ -100,10 +122,11 @@ public class TelegramBotService(
             callbackData = callback.Data;
 
             chatId = callback.Message.Chat.Id;
+            var userSession = await userSessionStore.TryGetSession(chatId);
 
-            if (UserSessionsStore.UserSessions.TryGetValue(chatId, out var session))
+            if (userSession !=null )
             {
-                switch (session.UserState)
+                switch (userSession.UserState)
                 {
                     case UserStates.Waiting:
 
@@ -125,20 +148,24 @@ public class TelegramBotService(
                 }
             }
 
+            var newSession = new UserSession();
             switch (callbackData)
             {
                 case "add_recipe":
                     result = new HandlerResult("✏️ Введите наименование рецепта:", null,null);
-                    UserSessionsStore.UserSessions[chatId] = new UserSession();
-                    UserSessionsStore.UserSessions[chatId].UserState = UserStates.AddingRecipe;
-                    UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.WaitingForRecipeName;
+                    newSession = new UserSession();
+                    newSession.UserState = UserStates.AddingRecipe;
+                    newSession.RecipeState = RecipeStates.WaitingForRecipeName;
+                    await userSessionStore.SetUserSession(chatId, newSession);
                     break;
                 case "my_recipe":
-                    UserSessionsStore.UserSessions[chatId] = new UserSession();
-                    UserSessionsStore.UserSessions[chatId].UserState = UserStates.GetMyRecipes;
-                    UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.ShowRecipeSelectionOptions;
+                    newSession = new UserSession();
+                    newSession.UserState = UserStates.GetMyRecipes;
+                    newSession.RecipeState = RecipeStates.ShowRecipeSelectionOptions;
+                    await userSessionStore.SetUserSession(chatId, newSession);
                     result = await mediator.Send(new GetUserRecipesRequest(chatId, text, callbackData),
                         cancellationToken);
+                    
                     break;
                 case "cancel":
                     result = await Cancel(chatId, text, callbackData, cancellationToken);

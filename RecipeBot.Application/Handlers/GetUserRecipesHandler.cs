@@ -1,4 +1,6 @@
 ﻿using MediatR;
+using RecipeBot.Application.Abstract;
+using RecipeBot.Application.Mappers.Extensions;
 using RecipeBot.Application.Models;
 using RecipeBot.Domain.Abstract.IRepositories;
 using RecipeBot.Domain.Enums;
@@ -6,91 +8,97 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace RecipeBot.Application.Handlers;
 
-
 public record GetUserRecipesRequest(
-long ChatId,
-string? text,
-string? CallbackData) : IRequest<HandlerResult?>;
+    long ChatId,
+    string? text,
+    string? CallbackData) : IRequest<HandlerResult?>;
 
-public class GetUserRecipesHandler(IRecipeRepository recipeRepository ,
-    ICategoryRepository categoryRepository) : IRequestHandler<GetUserRecipesRequest, HandlerResult?>
+public class GetUserRecipesHandler(
+    IRecipeRepository recipeRepository,
+    ICategoryRepository categoryRepository,
+    IUserSessionStore userSessionStore) : IRequestHandler<GetUserRecipesRequest, HandlerResult?>
 {
     public async Task<HandlerResult?> Handle(GetUserRecipesRequest request, CancellationToken cancellationToken)
     {
         var chatId = request.ChatId;
-        if (UserSessionsStore.UserSessions.TryGetValue(chatId, out var session))
+        var userSession = await userSessionStore.GetOrAddUserSession(request.ChatId);
+        if (userSession == null)
+            return new HandlerResult("Произошла непредвиденная ошибка, повторите снова", null, null);
+
+        switch (userSession.RecipeState)
         {
-            switch (session.RecipeState)
-            {
-                case RecipeStates.ShowRecipeSelectionOptions:
-                    return ShowRecipeSelectionOptions(chatId);
-                case RecipeStates.ShowRecipces:
-                    return await HandleRecipeSelection(
-                        chatId,
-                        request.CallbackData,
-                        cancellationToken);
-                case RecipeStates.WaitingForCategory:
-                    return await SearchByCategory(chatId,request.CallbackData,cancellationToken);
-                case RecipeStates.WaitingForRecipeName:
-                    return await SearchByName(chatId,request.text,cancellationToken);
-                case RecipeStates.WaitMoveForRecipe:
-                    return await GetMoveForRecipe(chatId,request.CallbackData,cancellationToken);
-                
-            }
+            case RecipeStates.ShowRecipeSelectionOptions:
+                return await ShowRecipeSelectionOptions(chatId,userSession);
+            case RecipeStates.ShowRecipces:
+                return await HandleRecipeSelection(
+                    chatId,
+                    request.CallbackData,
+                    userSession);
+            case RecipeStates.WaitingForCategory:
+                return await SearchByCategory(chatId, request.CallbackData,userSession, cancellationToken);
+            case RecipeStates.WaitingForRecipeName:
+                return await SearchByName(chatId, request.text,userSession, cancellationToken);
+            case RecipeStates.WaitMoveForRecipe:
+                return await GetMoveForRecipe(chatId, request.CallbackData,userSession, cancellationToken);
         }
+
+
         if (request.CallbackData != null)
         {
             switch (request.CallbackData)
             {
                 case "all_list":
-                    return await GetAllRecipe(chatId,cancellationToken);
+                    return await GetAllRecipe(chatId,userSession, cancellationToken);
                 case "for_category":
-                    return await GetRecipesByCateGory(chatId,cancellationToken);
+                    return await GetRecipesByCateGory(chatId,userSession, cancellationToken);
                 case "search_by_name":
-                    return  WaitingNameForSearch(request.ChatId);
+                    return await WaitingNameForSearch(request.ChatId,userSession);
                 case "cancel":
-                    return  CancelRecipe(request.ChatId);
-                
+                    return await CancelRecipe(request.ChatId,userSession);
             }
         }
+
         return null;
     }
 
-    private async Task<HandlerResult?> GetMoveForRecipe(long chatId, string callbackData, CancellationToken cancellationToken)
+    private async Task<HandlerResult?> GetMoveForRecipe(long chatId, string callbackData,
+        UserSession userSession,
+        CancellationToken cancellationToken)
     {
         if (callbackData.StartsWith("recipe:view:"))
         {
             var recipeId = int.Parse(
                 callbackData["recipe:view:".Length..]);
-            return await ViewRecipe(chatId, recipeId, cancellationToken);
+            return await ViewRecipe(chatId, recipeId,userSession, cancellationToken);
         }
 
         if (callbackData.StartsWith("recipe:delete:"))
         {
             var recipeId = int.Parse(
                 callbackData["recipe:delete:".Length..]);
-            return await RemoveRecipe(chatId, recipeId, cancellationToken);
+            return await RemoveRecipe(chatId, recipeId,userSession, cancellationToken);
         }
-        
+
         if (callbackData.StartsWith("recipe:stages:"))
         {
             var stage = int.Parse(
                 callbackData["recipe:stages:".Length..]);
-            return await ViewStageRecipe(chatId, stage);
+            return await ViewStageRecipe(stage,userSession);
         }
 
         if (callbackData == "recipe:back")
         {
-            UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.ShowRecipeSelectionOptions;
-            return ShowRecipeSelectionOptions(chatId);
+            userSession.RecipeState = RecipeStates.ShowRecipeSelectionOptions;
+            await userSessionStore.SetUserSession(chatId,userSession);
+            return await ShowRecipeSelectionOptions(chatId,userSession);
         }
 
         return null;
     }
 
-    private async Task<HandlerResult?> ViewStageRecipe(long chatId, int stage)
+    private async Task<HandlerResult?> ViewStageRecipe(int stage, UserSession userSession)
     {
-        var recipe = UserSessionsStore.UserSessions[chatId].CurrentViewRecipe;
+        var recipe = userSession.CurrentViewRecipe;
         if (recipe == null)
         {
             return null;
@@ -99,10 +107,12 @@ public class GetUserRecipesHandler(IRecipeRepository recipeRepository ,
         return CreateStagePagination.CreatePagination(recipe, stage);
     }
 
-    private async Task<HandlerResult?> ViewRecipe(long chatId, int recipeId, CancellationToken cancellationToken)
+    private async Task<HandlerResult?> ViewRecipe(long chatId, int recipeId, UserSession userSession,
+        CancellationToken cancellationToken)
     {
-        var recipe = await recipeRepository.Get(chatId,recipeId, cancellationToken);
-        UserSessionsStore.UserSessions[chatId].CurrentViewRecipe = recipe;
+        var recipe = await recipeRepository.Get(chatId, recipeId, cancellationToken);
+       
+        userSession.CurrentViewRecipe = recipe.ToDto();
         var buttons = new[]
         {
             new[]
@@ -135,53 +145,64 @@ public class GetUserRecipesHandler(IRecipeRepository recipeRepository ,
 
                        👨‍🍳 Этапов приготовления: {recipe.Stages.Count}
                        """;
-        
+
+        await userSessionStore.SetUserSession(chatId, userSession);
         return new HandlerResult(
             message,
             recipe.UrlImage,
             new InlineKeyboardMarkup(buttons));
     }
-    private async Task<HandlerResult?> RemoveRecipe(long chatId, int recipeId,
+
+    private async Task<HandlerResult?> RemoveRecipe(long chatId, int recipeId, UserSession userSession,
         CancellationToken cancellationToken)
     {
-        await recipeRepository.Delete(chatId,recipeId, cancellationToken);
-        UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.ShowRecipeSelectionOptions;
-        return ShowRecipeSelectionOptions(chatId);
+        await recipeRepository.Delete(chatId, recipeId, cancellationToken);
+        userSession.RecipeState = RecipeStates.ShowRecipeSelectionOptions;
+        await userSessionStore.SetUserSession(chatId, userSession);
+        return await ShowRecipeSelectionOptions(chatId, userSession);
     }
 
-    private HandlerResult WaitingNameForSearch(long chatId)
+    private async Task<HandlerResult> WaitingNameForSearch(long chatId, UserSession userSession)
     {
-        UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.WaitingForRecipeName;
-        return new HandlerResult("Введите полное и частичное наименование рецепта.", null,null);
+        userSession.RecipeState = RecipeStates.WaitingForRecipeName;
+        await userSessionStore.SetUserSession(chatId, userSession);
+        return new HandlerResult("Введите полное и частичное наименование рецепта.", null, null);
     }
-    
-    private async Task<HandlerResult?> SearchByName(long chatId, string text ,CancellationToken cancellationToken)
+
+    private async Task<HandlerResult?> SearchByName(long chatId, string text, UserSession userSession,
+        CancellationToken cancellationToken)
     {
-        var recipes =  await recipeRepository.SearchByName(chatId, text, cancellationToken);
-        
+        var recipes = (await recipeRepository.SearchByName(chatId, text, cancellationToken)).ToDto();
+
         var buttons = CreateRecipePagination.CreatePagination(
             recipes,
             page: 0,
             5);
-        UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.ShowRecipces;
-        UserSessionsStore.UserSessions[chatId].Recipes = recipes;
-        return new HandlerResult("Выбери рецепт", null,buttons);
+        userSession.RecipeState = RecipeStates.ShowRecipces;
+        userSession.Recipes = recipes;
+        await userSessionStore.SetUserSession(chatId, userSession);
+        return new HandlerResult("Выбери рецепт", null, buttons);
     }
 
-    private async Task<HandlerResult?> SearchByCategory(long chatId, string callbackData,CancellationToken cancellationToken)
+    private async Task<HandlerResult?> SearchByCategory(long chatId, string callbackData, UserSession userSession,
+        CancellationToken cancellationToken)
     {
-        var recipes =  await recipeRepository.GetListByTelegramIdAndCategory(chatId,int.Parse(callbackData),cancellationToken);
-        
+        var recipes =
+            (await recipeRepository.GetListByTelegramIdAndCategory(chatId, int.Parse(callbackData), cancellationToken))
+            .ToDto();
+
         var buttons = CreateRecipePagination.CreatePagination(
             recipes,
             page: 0,
             5);
-        UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.ShowRecipces;
-        UserSessionsStore.UserSessions[chatId].Recipes = recipes;
-        return new HandlerResult("Выбери рецепт", null,buttons);
+        userSession.RecipeState = RecipeStates.ShowRecipces;
+        userSession.Recipes = recipes;
+        await userSessionStore.SetUserSession(chatId, userSession);
+        return new HandlerResult("Выбери рецепт", null, buttons);
     }
 
-    private async Task<HandlerResult?> GetRecipesByCateGory(long chatId, CancellationToken cancellationToken)
+    private async Task<HandlerResult?> GetRecipesByCateGory(long chatId, UserSession userSession,
+        CancellationToken cancellationToken)
     {
         var categories = await categoryRepository.GetAllCategories(cancellationToken);
         var buttons = new List<InlineKeyboardButton>();
@@ -189,42 +210,47 @@ public class GetUserRecipesHandler(IRecipeRepository recipeRepository ,
         {
             buttons.Add(InlineKeyboardButton.WithCallbackData($"{category.Name}", $"{category.Id}"));
         }
-        UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.WaitingForCategory;
-        return new HandlerResult("✅ Выберите категорию.", null,new InlineKeyboardMarkup(buttons));
+
+        userSession.RecipeState = RecipeStates.WaitingForCategory;
+        await userSessionStore.SetUserSession(chatId, userSession);
+        return new HandlerResult("✅ Выберите категорию.", null, new InlineKeyboardMarkup(buttons));
     }
 
-    private HandlerResult? GetPageRecipe(long chatId,string callbackData)
+    private HandlerResult? GetPageRecipe(string callbackData, UserSession userSession)
     {
         if (callbackData.StartsWith("recipes:page:"))
         {
             var page = int.Parse(
                 callbackData["recipes:page:".Length..]);
-            
+
             return new HandlerResult(
                 "📋 Ваши рецепты:",
                 null,
                 CreateRecipePagination
-                    .CreatePagination(UserSessionsStore.UserSessions[chatId].Recipes, page, 5));
+                    .CreatePagination(userSession.Recipes, page, 5));
         }
+
         return null;
     }
-     
-    private HandlerResult? CancelRecipe(long chatId)
+
+    private async Task<HandlerResult?> CancelRecipe(long chatId, UserSession userSession)
     {
-        UserSessionsStore.UserSessions[chatId].UserState = UserStates.Cansel;
+        userSession.UserState = UserStates.Cansel;
+        await userSessionStore.SetUserSession(chatId, userSession);
         return null;
     }
+
     private async Task<HandlerResult?> HandleRecipeSelection(
         long chatId,
         string? callbackData,
-        CancellationToken cancellationToken)
+        UserSession userSession)
     {
         if (string.IsNullOrWhiteSpace(callbackData))
             return null;
 
         if (callbackData.StartsWith("recipes:page:"))
         {
-            return GetPageRecipe(chatId, callbackData);
+            return GetPageRecipe(callbackData, userSession);
         }
 
         if (callbackData.StartsWith("recipe:"))
@@ -234,16 +260,16 @@ public class GetUserRecipesHandler(IRecipeRepository recipeRepository ,
             if (!int.TryParse(recipeIdText, out var recipeId))
                 return null;
 
-            return GetRecipeVaribles(
+            return await GetRecipeVaribles(
                 chatId,
                 recipeId,
-                cancellationToken);
+                userSession);
         }
 
         return null;
     }
 
-    private HandlerResult GetRecipeVaribles(long chatId, int recipeId, CancellationToken cancellationToken)
+    private async Task<HandlerResult> GetRecipeVaribles(long chatId, int recipeId, UserSession userSession)
     {
         var buttons = new[]
         {
@@ -264,47 +290,46 @@ public class GetUserRecipesHandler(IRecipeRepository recipeRepository ,
                     "recipe:back")
             }
         };
-        UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.WaitMoveForRecipe;
-        return new HandlerResult("Выбери действие", null,buttons);
+        userSession.RecipeState = RecipeStates.WaitMoveForRecipe;
+        await userSessionStore.SetUserSession(chatId, userSession);
+        return new HandlerResult("Выбери действие", null, buttons);
     }
-    
-    private async Task<HandlerResult?> GetAllRecipe (long chatId,CancellationToken cancellationToken)
+
+    private async Task<HandlerResult?> GetAllRecipe(long chatId, UserSession userSession,
+        CancellationToken cancellationToken)
     {
-        var recipes =  await recipeRepository.GetListByTelegramId(chatId,cancellationToken);
-        
+        var recipes = (await recipeRepository.GetListByTelegramId(chatId, cancellationToken)).ToDto();
+
         var buttons = CreateRecipePagination.CreatePagination(
             recipes,
             page: 0,
             5);
-        UserSessionsStore.UserSessions[chatId].RecipeState = RecipeStates.ShowRecipces;
-        UserSessionsStore.UserSessions[chatId].Recipes = recipes;
-        return new HandlerResult("Выбери рецепт", null,buttons);
+        userSession.RecipeState = RecipeStates.ShowRecipces;
+        userSession.Recipes = recipes;
+        await userSessionStore.SetUserSession(chatId, userSession);
+        return new HandlerResult("Выбери рецепт", null, buttons);
     }
-    
-    private HandlerResult? ShowRecipeSelectionOptions(long chatId)
-    {
-        if (UserSessionsStore.UserSessions.TryGetValue(chatId, out var session))
-        {
-            var buttons = new[]
-            {
-                new[]
-                {
-                    InlineKeyboardButton.WithCallbackData("📋 Весь список", "all_list"),
-                    InlineKeyboardButton.WithCallbackData("📂 По категории", "for_category")
-                },
-                new[]
-                {
-                    InlineKeyboardButton.WithCallbackData("🔎 Поиск по имени", "search_by_name")
-                },
-                new[]
-                {
-                    InlineKeyboardButton.WithCallbackData("↩️ Назад", "cancel")
-                }
-            };
-            session.RecipeState = RecipeStates.WaitingMove;
-            return new HandlerResult("✅ Выберите один из вариантов.", null,new InlineKeyboardMarkup(buttons));
-        }
 
-        return null;
+    private async Task<HandlerResult?> ShowRecipeSelectionOptions(long chatId, UserSession userSession)
+    {
+        var buttons = new[]
+        {
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("📋 Весь список", "all_list"),
+                InlineKeyboardButton.WithCallbackData("📂 По категории", "for_category")
+            },
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("🔎 Поиск по имени", "search_by_name")
+            },
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("↩️ Назад", "cancel")
+            }
+        };
+        userSession.RecipeState = RecipeStates.WaitingMove;
+        await userSessionStore.SetUserSession(chatId, userSession);
+        return new HandlerResult("✅ Выберите один из вариантов.", null, new InlineKeyboardMarkup(buttons));
     }
 }

@@ -1,15 +1,26 @@
-﻿namespace RecipeBot.Domain.Models;
+﻿using System.Text.Json.Serialization;
+
+namespace RecipeBot.Domain.Models;
 
 public class Recipe
 {
+    [JsonInclude]
     public int Id { get; private set; }
+    [JsonInclude]
     public string Name { get; private set; }
+    [JsonInclude]
     public string? UrlImage { get; private set; }
+    [JsonInclude]
     public string Ingredients { get; private set; }
+    [JsonInclude]
     public virtual List<Stage> Stages { get; private set; } = [];
+    [JsonInclude]
     public virtual User User { get; private set; }
+    [JsonInclude]
     public virtual Category Category { get; private set; }
+    [JsonInclude]
     public int CategoryId { get; private set; }
+    [JsonInclude]
     public int UserId { get; private set; }
 
     public void SetName(string name)
@@ -20,7 +31,7 @@ public class Recipe
         Name = name;
     }
 
-    public void SetUrlImage(string urlImage)
+    public void SetUrlImage(string? urlImage)
     {
         if (string.IsNullOrWhiteSpace(urlImage))
             throw new ArgumentException("SetUrlImage cannot be empty");

@@ -11,8 +11,8 @@ using RecipeBot.Infrastructure;
 namespace RecipeBot.Infrastructure.Migrations
 {
     [DbContext(typeof(MyRecipeDbContext))]
-    [Migration("20260903103004_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20260908104231_InitDb")]
+    partial class InitDb
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,13 +24,33 @@ namespace RecipeBot.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("MyRecipeDomain.Models.Recipe", b =>
+            modelBuilder.Entity("RecipeBot.Domain.Models.Category", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Categories");
+                });
+
+            modelBuilder.Entity("RecipeBot.Domain.Models.Recipe", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Ingredients")
                         .IsRequired()
@@ -48,12 +68,14 @@ namespace RecipeBot.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CategoryId");
+
                     b.HasIndex("UserId");
 
                     b.ToTable("Recipes");
                 });
 
-            modelBuilder.Entity("MyRecipeDomain.Models.Stage", b =>
+            modelBuilder.Entity("RecipeBot.Domain.Models.Stage", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -81,7 +103,7 @@ namespace RecipeBot.Infrastructure.Migrations
                     b.ToTable("Stages");
                 });
 
-            modelBuilder.Entity("MyRecipeDomain.Models.User", b =>
+            modelBuilder.Entity("RecipeBot.Domain.Models.User", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -89,16 +111,11 @@ namespace RecipeBot.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("HandlerType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("State")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<long>("TelegramId")
@@ -106,25 +123,34 @@ namespace RecipeBot.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TelegramId");
+                    b.HasIndex("TelegramId")
+                        .IsUnique();
 
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("MyRecipeDomain.Models.Recipe", b =>
+            modelBuilder.Entity("RecipeBot.Domain.Models.Recipe", b =>
                 {
-                    b.HasOne("MyRecipeDomain.Models.User", "User")
+                    b.HasOne("RecipeBot.Domain.Models.Category", "Category")
+                        .WithMany("Recipes")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RecipeBot.Domain.Models.User", "User")
                         .WithMany("Recipes")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("Category");
+
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("MyRecipeDomain.Models.Stage", b =>
+            modelBuilder.Entity("RecipeBot.Domain.Models.Stage", b =>
                 {
-                    b.HasOne("MyRecipeDomain.Models.Recipe", "Recipe")
+                    b.HasOne("RecipeBot.Domain.Models.Recipe", "Recipe")
                         .WithMany("Stages")
                         .HasForeignKey("RecipeId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -133,12 +159,17 @@ namespace RecipeBot.Infrastructure.Migrations
                     b.Navigation("Recipe");
                 });
 
-            modelBuilder.Entity("MyRecipeDomain.Models.Recipe", b =>
+            modelBuilder.Entity("RecipeBot.Domain.Models.Category", b =>
+                {
+                    b.Navigation("Recipes");
+                });
+
+            modelBuilder.Entity("RecipeBot.Domain.Models.Recipe", b =>
                 {
                     b.Navigation("Stages");
                 });
 
-            modelBuilder.Entity("MyRecipeDomain.Models.User", b =>
+            modelBuilder.Entity("RecipeBot.Domain.Models.User", b =>
                 {
                     b.Navigation("Recipes");
                 });

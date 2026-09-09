@@ -9,8 +9,8 @@ public class UserSession
 
     public RecipeStates RecipeState { get; set; }
 
-    public Recipe? RecipeDraft { get; set; }
-    public Recipe? CurrentViewRecipe { get; set; }
+    public RecipeDto? RecipeDraft { get; set; }
+    public RecipeDto? CurrentViewRecipe { get; set; }
 
-    public List<Recipe>? Recipes  { get; set; }
+    public List<RecipeDto>? Recipes  { get; set; }
 }
