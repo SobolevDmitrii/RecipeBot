@@ -4,17 +4,11 @@ namespace RecipeBot.Domain.Models;
 
 public class Stage
 {
-    [JsonInclude]
     public int Id { get; private set; }
-    [JsonInclude]
     public string Description { get; private set; }
-    [JsonInclude]
     public int Number { get;private set; }
-    [JsonInclude]
     public string? UrlImage { get; private set; }
-    [JsonInclude]
     public int RecipeId { get; private set; }
-    [JsonInclude]
     public virtual Recipe Recipe { get;private set; }
     
     public void SetDescription(string description)

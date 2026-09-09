@@ -77,7 +77,7 @@ public class TelegramBotService(
             var userSession = await userSessionStore.TryGetSession(chatId);
             if ( userSession == null )
             {
-                await mediator.Send(new GetOrCreateUserRequest(update), cancellationToken);
+                await mediator.Send(new GetOrCreateUserRequest(chatId, update.Message.From.FirstName), cancellationToken);
             }
 
             switch (update.Message?.Text)
@@ -171,11 +171,16 @@ public class TelegramBotService(
                     result = await Cancel(chatId, text, callbackData, cancellationToken);
                     break;
             }
+            
+            await bot.AnswerCallbackQuery(
+                update.CallbackQuery.Id,
+                cancellationToken: cancellationToken);
         }
         else
         {
             result = new HandlerResult("⚠️ Вы ещё не ввели текст.", null,null);
         }
+        
 
         await SendMessage(bot, chatId, result, cancellationToken);
     }

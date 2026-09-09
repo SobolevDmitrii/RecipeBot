@@ -13,10 +13,6 @@ public class RedisService : IRedisService
     {
         _redis = redis;
     }
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        ReferenceHandler = ReferenceHandler.IgnoreCycles
-    };
 
     public async Task<T?> GetAsync<T>(string key)
     {
@@ -29,7 +25,7 @@ public class RedisService : IRedisService
         
         var json = (string)value;
 
-        return JsonSerializer.Deserialize<T>(json, JsonOptions);
+        return JsonSerializer.Deserialize<T>(json);
     }
 
     public async Task SetAsync<T>(
@@ -39,7 +35,7 @@ public class RedisService : IRedisService
     {
         var database = _redis.GetDatabase();
 
-        var json = JsonSerializer.Serialize(value, JsonOptions);
+        var json = JsonSerializer.Serialize(value);
 
         await database.StringSetAsync(
             key,
