@@ -15,15 +15,22 @@ public class SessionRecoveryService(IRedisService redisService,
 
             var sessions = await redisService.GetUserSessionsAsync(nonActivitySession);
 
-            var crashSessions = sessions.Where(q => q.CurrentUpdateId != null)
+            var crashSessions = sessions.Where(q => q?.CurrentUpdateId != null)
                 .ToList();
 
             foreach (var session in crashSessions)
             {
-                await botClient.SendMessage(
-                    session.ChatId,
-                    text: "Произошли технические неполадки. Воспользуйтесь командой '/start' или '/cancel' чтобы начать заново.",
-                    cancellationToken: stoppingToken);
+                try
+                {
+                    await botClient.SendMessage(
+                        session.ChatId,
+                        text: "Произошли технические неполадки. Воспользуйтесь командой '/start' или '/cancel' чтобы начать заново.",
+                        cancellationToken: stoppingToken);
+                }
+                catch (Exception e)
+                {
+                    //Loging 
+                }
             }
             
             await redisService.RemoveRangeProcessingAsync(crashSessions.Select(q=>q.ChatId).ToList());

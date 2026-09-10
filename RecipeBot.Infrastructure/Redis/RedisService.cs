@@ -26,7 +26,6 @@ public class RedisService : IRedisService
         
         var json = (string)value;
 
-        Console.WriteLine("Get:" +json);
         return JsonSerializer.Deserialize<T>(json);
     }
 
@@ -39,7 +38,6 @@ public class RedisService : IRedisService
 
         var json = JsonSerializer.Serialize(value);
 
-        Console.WriteLine("Set:" +json);
         await database.StringSetAsync(
             key,
             json,

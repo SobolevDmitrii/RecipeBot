@@ -27,7 +27,9 @@ public static class InfraDataExtensions
     private static void AddMyContext(this IServiceCollection serviceCollection, IConfiguration configuration)
     {
         var connectionString = configuration.GetConnectionString("MyRecipeDb");
+        
         serviceCollection.AddDbContextFactory<MyRecipeDbContext>(q => q.UseNpgsql(connectionString));
+        serviceCollection.AddSingleton<IUserSessionStore, UserSessionsStore>();
     }
 
     private static void AddRedis(this IServiceCollection serviceCollection, IConfiguration configuration)

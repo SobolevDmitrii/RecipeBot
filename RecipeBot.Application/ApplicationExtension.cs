@@ -13,7 +13,6 @@ public static class ApplicationExtension
         
         serviceCollection.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
         serviceCollection.AddTelegramBot(configuration);
-        serviceCollection.AddSingleton<IUserSessionStore, UserSessionsStore>();
         //serviceCollection.AddSingleton<HandlersFactory>();
 
     }
