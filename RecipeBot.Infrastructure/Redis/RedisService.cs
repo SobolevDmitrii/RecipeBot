@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 using RecipeBot.Application.Abstract;
+using RecipeBot.Application.Models;
 using StackExchange.Redis;
 
 namespace RecipeBot.Infrastructure.Redis;
@@ -25,6 +26,7 @@ public class RedisService : IRedisService
         
         var json = (string)value;
 
+        Console.WriteLine("Get:" +json);
         return JsonSerializer.Deserialize<T>(json);
     }
 
@@ -37,6 +39,7 @@ public class RedisService : IRedisService
 
         var json = JsonSerializer.Serialize(value);
 
+        Console.WriteLine("Set:" +json);
         await database.StringSetAsync(
             key,
             json,
@@ -50,5 +53,69 @@ public class RedisService : IRedisService
         var database = _redis.GetDatabase();
 
         await database.KeyDeleteAsync(key);
+    }
+
+    public async Task AddProcessingAsync(long userId)
+    {
+        var database = _redis.GetDatabase();
+        
+        await database.SortedSetAddAsync(
+            "processing:sessions",
+            userId.ToString(),
+            DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+    }
+
+    public async Task<List<long>> GetExpiredProcessingAsync(int minutes)
+    {
+        var database = _redis.GetDatabase();
+        
+        var threshold = DateTimeOffset.UtcNow
+            .AddMinutes(-minutes)
+            .ToUnixTimeSeconds();
+
+         return (await database.SortedSetRangeByScoreAsync(
+            "processing:sessions",
+            double.NegativeInfinity,
+            threshold))
+            .Select(q => (long)q)
+            .ToList();
+    }
+
+    public async Task RemoveProcessingAsync(long userId)
+    {
+        var database = _redis.GetDatabase();
+        await database.SortedSetRemoveAsync(
+            "processing:sessions",
+            userId.ToString());
+    }
+    
+    public async Task RemoveRangeProcessingAsync(List<long> userIds)
+    {
+        var database = _redis.GetDatabase();
+        var members = userIds
+            .Select(id => (RedisValue)id.ToString())
+            .ToArray();
+
+        await database.SortedSetRemoveAsync(
+            "processing:sessions",
+            members);
+    }
+    
+    public async Task<List<UserSession?>> GetUserSessionsAsync(List<long> userIds)
+    {
+        var database = _redis.GetDatabase();
+
+        var keys = userIds
+            .Select(id => (RedisKey)id.ToString())
+            .ToArray();
+
+        var values = await database.StringGetAsync(keys);
+
+        return values
+            .Select(value =>
+                value.HasValue
+                    ? JsonSerializer.Deserialize<UserSession>((string)value!)
+                    : null)
+            .ToList();
     }
 }

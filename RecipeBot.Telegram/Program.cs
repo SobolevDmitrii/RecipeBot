@@ -13,6 +13,7 @@ var configuration = builder.Configuration;
 builder.Services.AddApplication(configuration);
 builder.Services.AddInfra(configuration);
 builder.Services.AddHostedService<TelegramBotService>();
+builder.Services.AddHostedService<SessionRecoveryService>();
 
 var app = builder.Build();
 

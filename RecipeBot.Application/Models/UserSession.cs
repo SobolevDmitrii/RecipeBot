@@ -13,4 +13,8 @@ public class UserSession
     public RecipeDto? CurrentViewRecipe { get; set; }
 
     public List<RecipeDto>? Recipes  { get; set; }
+    
+    public long? CurrentUpdateId { get; set; }
+    public long? LastUpdateId { get; set; }
+    public long ChatId { get; set; }
 }
