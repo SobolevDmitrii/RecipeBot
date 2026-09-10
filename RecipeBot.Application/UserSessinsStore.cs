@@ -21,4 +21,10 @@ public class UserSessionsStore(IRedisService redisService) : IUserSessionStore
     
     public async Task SetUserSession(long userId, UserSession userSession)
     => await redisService.SetAsync(userId.ToString(), userSession);
+
+    public async Task AddProcessing(long userId)
+    => await redisService.AddProcessingAsync(userId);
+
+    public async Task RemoveProcessing(long userId)
+    => await redisService.RemoveProcessingAsync(userId);
 }

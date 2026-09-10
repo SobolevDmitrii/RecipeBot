@@ -11,7 +11,8 @@ namespace RecipeBot.Application.Handlers;
 public record GetUserRecipesRequest(
     long ChatId,
     string? text,
-    string? CallbackData) : IRequest<HandlerResult?>;
+    string? CallbackData,
+    int UpdateId) : IRequest<HandlerResult?>;
 
 public class GetUserRecipesHandler(
     IRecipeRepository recipeRepository,
@@ -24,6 +25,11 @@ public class GetUserRecipesHandler(
         var userSession = await userSessionStore.GetOrAddUserSession(request.ChatId);
         if (userSession == null)
             return new HandlerResult("Произошла непредвиденная ошибка, повторите снова", null, null);
+        
+        userSession.ChatId = chatId;
+        userSession.CurrentUpdateId = request.UpdateId;
+        await userSessionStore.AddProcessing(chatId);
+        await userSessionStore.SetUserSession(chatId, userSession);
 
         switch (userSession.RecipeState)
         {
@@ -307,6 +313,8 @@ public class GetUserRecipesHandler(
         userSession.RecipeState = RecipeStates.ShowRecipces;
         userSession.Recipes = recipes;
         await userSessionStore.SetUserSession(chatId, userSession);
+
+        await Task.Delay(new TimeSpan(0, 0, 5, 0));
         return new HandlerResult("Выбери рецепт", null, buttons);
     }
 

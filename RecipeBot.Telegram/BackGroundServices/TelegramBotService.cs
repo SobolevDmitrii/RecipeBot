@@ -106,11 +106,11 @@ public class TelegramBotService(
                         break;
                     case UserStates.AddingRecipe:
                         result = await mediator.Send(
-                            new AddNewRecipeRequest(chatId, text, imageFileId, callbackData, caption),
+                            new AddNewRecipeRequest(chatId, text, imageFileId, callbackData, caption, update.Id),
                             cancellationToken);
                         break;
                     case UserStates.GetMyRecipes:
-                        result = await mediator.Send(new GetUserRecipesRequest(chatId, text, callbackData),
+                        result = await mediator.Send(new GetUserRecipesRequest(chatId, text, callbackData, update.Id),
                             cancellationToken);
                         break;
                 }
@@ -138,11 +138,11 @@ public class TelegramBotService(
                         break;
                     case UserStates.AddingRecipe:
                         result = await mediator.Send(
-                            new AddNewRecipeRequest(chatId, text, imageFileId, callbackData, caption),
+                            new AddNewRecipeRequest(chatId, text, imageFileId, callbackData, caption, update.Id),
                             cancellationToken);
                         break;
                     case UserStates.GetMyRecipes:
-                        result = await mediator.Send(new GetUserRecipesRequest(chatId, text, callbackData),
+                        result = await mediator.Send(new GetUserRecipesRequest(chatId, text, callbackData, update.Id),
                             cancellationToken);
                         break;
                 }
@@ -163,7 +163,7 @@ public class TelegramBotService(
                     newSession.UserState = UserStates.GetMyRecipes;
                     newSession.RecipeState = RecipeStates.ShowRecipeSelectionOptions;
                     await userSessionStore.SetUserSession(chatId, newSession);
-                    result = await mediator.Send(new GetUserRecipesRequest(chatId, text, callbackData),
+                    result = await mediator.Send(new GetUserRecipesRequest(chatId, text, callbackData, update.Id),
                         cancellationToken);
                     
                     break;
@@ -180,12 +180,11 @@ public class TelegramBotService(
         {
             result = new HandlerResult("⚠️ Вы ещё не ввели текст.", null,null);
         }
-        
-
-        await SendMessage(bot, chatId, result, cancellationToken);
+       
+        await SendMessage(bot, chatId, result, update.Id, cancellationToken);
     }
 
-    private async Task SendMessage(ITelegramBotClient bot, long chatId, HandlerResult? result,
+    private async Task SendMessage(ITelegramBotClient bot, long chatId, HandlerResult? result, int updateId,
         CancellationToken cancellationToken)
     {
         if (result == null) return;
@@ -206,6 +205,11 @@ public class TelegramBotService(
                 replyMarkup: result.Buttons,
                 cancellationToken: cancellationToken);
         }
+        var session = await userSessionStore.TryGetSession(chatId);
+        session.CurrentUpdateId = null;
+        session.LastUpdateId = updateId;
+        await userSessionStore.SetUserSession(chatId, session);
+        await userSessionStore.RemoveProcessing(chatId);
     }
 
     private async Task<HandlerResult?> Cancel(long chatId, string? text, string? callBack,
