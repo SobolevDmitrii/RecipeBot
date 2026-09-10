@@ -29,11 +29,15 @@ public class SessionRecoveryService(IRedisService redisService,
                 }
                 catch (Exception e)
                 {
-                    //Loging 
+                    //ToDo потом тут будет логирование
                 }
             }
+
+            if (crashSessions.Count > 0)
+            {
+                await redisService.RemoveRangeProcessingAsync(crashSessions.Select(q=>q.ChatId).ToList());
+            }
             
-            await redisService.RemoveRangeProcessingAsync(crashSessions.Select(q=>q.ChatId).ToList());
             await Task.Delay(
                 TimeSpan.FromMinutes(5),
                 stoppingToken);

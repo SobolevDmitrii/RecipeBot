@@ -23,7 +23,8 @@ public class StartMenuHandler(IUserSessionStore userSessionStore) : IRequestHand
             return null;
         }
 
-        var session = await userSessionStore.GetOrAddUserSession(request.ChatId); 
+        var session = await userSessionStore.GetOrAddUserSession(request.ChatId);
+        session.UserState = UserStates.Start;
         await userSessionStore.SetUserSession(request.ChatId, session);
 
         var buttons = new[]

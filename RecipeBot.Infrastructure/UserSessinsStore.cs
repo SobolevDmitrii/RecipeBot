@@ -5,6 +5,13 @@ namespace RecipeBot.Infrastructure;
 
 public class UserSessionsStore(IRedisService redisService) : IUserSessionStore
 {
+    public  async Task<UserSession> AddUserSession(long userId)
+    {
+        var newSession = new UserSession();
+        await redisService.SetAsync(userId.ToString(), newSession);
+        return newSession;
+    }
+
     public async Task<UserSession> GetOrAddUserSession(long userId)
     {
         var session = await redisService.GetAsync<UserSession>(userId.ToString());

@@ -57,14 +57,15 @@ public class TelegramBotService(
 
     private async Task HandleUpdateAsync(ITelegramBotClient bot, Update update, CancellationToken cancellationToken)
     {
-        var result = new HandlerResult("", null,null);
+        var result = new HandlerResult("", null, null);
         var chatId = 0L;
         string? text = null;
         string? imageFileId = null;
         string? callbackData = null;
         string? caption = null;
 
-        if (!string.IsNullOrWhiteSpace(update.Message?.Text) || !string.IsNullOrWhiteSpace(update.Message?.Caption) || update.Message?.Photo != null)
+        if (!string.IsNullOrWhiteSpace(update.Message?.Text) || !string.IsNullOrWhiteSpace(update.Message?.Caption) ||
+            update.Message?.Photo != null)
         {
             chatId = update.Message.Chat.Id;
             text = update.Message.Text;
@@ -75,14 +76,17 @@ public class TelegramBotService(
             }
 
             var userSession = await userSessionStore.TryGetSession(chatId);
-            if ( userSession == null )
+            if (userSession == null)
             {
-                await mediator.Send(new GetOrCreateUserRequest(chatId, update.Message.From.FirstName), cancellationToken);
+                await mediator.Send(new GetOrCreateUserRequest(chatId, update.Message.From.FirstName),
+                    cancellationToken);
+                userSession = await userSessionStore.AddUserSession(chatId);
             }
 
             switch (update.Message?.Text)
             {
                 case "/start":
+                    userSession.UserState = UserStates.Start;
                     result = await mediator.Send(new StartMenuRequest(chatId, text, callbackData), cancellationToken);
                     break;
                 case "/cancel":
@@ -92,28 +96,25 @@ public class TelegramBotService(
                     break;
             }
 
-            if (userSession != null)
+            switch (userSession.UserState)
             {
-                switch (userSession.UserState)
-                {
-                    case UserStates.Waiting:
-                        await bot.DeleteMessage(chatId, update.Message.MessageId, cancellationToken: cancellationToken);
-                        await bot.SendMessage(
-                            chatId,
-                            "Нажмите на одну из кнопок",
-                            cancellationToken: cancellationToken
-                        );
-                        break;
-                    case UserStates.AddingRecipe:
-                        result = await mediator.Send(
-                            new AddNewRecipeRequest(chatId, text, imageFileId, callbackData, caption, update.Id),
-                            cancellationToken);
-                        break;
-                    case UserStates.GetMyRecipes:
-                        result = await mediator.Send(new GetUserRecipesRequest(chatId, text, callbackData, update.Id),
-                            cancellationToken);
-                        break;
-                }
+                case UserStates.Waiting:
+                    await bot.DeleteMessage(chatId, update.Message.MessageId, cancellationToken: cancellationToken);
+                    await bot.SendMessage(
+                        chatId,
+                        "Нажмите на одну из кнопок",
+                        cancellationToken: cancellationToken
+                    );
+                    break;
+                case UserStates.AddingRecipe:
+                    result = await mediator.Send(
+                        new AddNewRecipeRequest(chatId, text, imageFileId, callbackData, caption, update.Id),
+                        cancellationToken);
+                    break;
+                case UserStates.GetMyRecipes:
+                    result = await mediator.Send(new GetUserRecipesRequest(chatId, text, callbackData, update.Id),
+                        cancellationToken);
+                    break;
             }
         }
         else if (update.CallbackQuery != null)
@@ -124,7 +125,7 @@ public class TelegramBotService(
             chatId = callback.Message.Chat.Id;
             var userSession = await userSessionStore.TryGetSession(chatId);
 
-            if (userSession !=null )
+            if (userSession != null)
             {
                 switch (userSession.UserState)
                 {
@@ -152,7 +153,7 @@ public class TelegramBotService(
             switch (callbackData)
             {
                 case "add_recipe":
-                    result = new HandlerResult("✏️ Введите наименование рецепта:", null,null);
+                    result = new HandlerResult("✏️ Введите наименование рецепта:", null, null);
                     newSession = new UserSession();
                     newSession.UserState = UserStates.AddingRecipe;
                     newSession.RecipeState = RecipeStates.WaitingForRecipeName;
@@ -165,22 +166,22 @@ public class TelegramBotService(
                     await userSessionStore.SetUserSession(chatId, newSession);
                     result = await mediator.Send(new GetUserRecipesRequest(chatId, text, callbackData, update.Id),
                         cancellationToken);
-                    
+
                     break;
                 case "cancel":
                     result = await Cancel(chatId, text, callbackData, cancellationToken);
                     break;
             }
-            
+
             await bot.AnswerCallbackQuery(
                 update.CallbackQuery.Id,
                 cancellationToken: cancellationToken);
         }
         else
         {
-            result = new HandlerResult("⚠️ Вы ещё не ввели текст.", null,null);
+            result = new HandlerResult("⚠️ Вы ещё не ввели текст.", null, null);
         }
-       
+
         await SendMessage(bot, chatId, result, update.Id, cancellationToken);
     }
 
@@ -188,13 +189,13 @@ public class TelegramBotService(
         CancellationToken cancellationToken)
     {
         if (result == null) return;
-        if (string.IsNullOrEmpty(result.UrlImage)) 
+        if (string.IsNullOrEmpty(result.UrlImage))
         {
             await bot.SendMessage(
-            chatId,
-            text: result.Message,
-            replyMarkup: result.Buttons,
-            cancellationToken: cancellationToken);
+                chatId,
+                text: result.Message,
+                replyMarkup: result.Buttons,
+                cancellationToken: cancellationToken);
         }
         else
         {
@@ -205,6 +206,7 @@ public class TelegramBotService(
                 replyMarkup: result.Buttons,
                 cancellationToken: cancellationToken);
         }
+
         var session = await userSessionStore.TryGetSession(chatId);
         session.CurrentUpdateId = null;
         session.LastUpdateId = updateId;
