@@ -1,8 +1,7 @@
-﻿using System.Collections.Concurrent;
-using RecipeBot.Application.Abstract;
+﻿using RecipeBot.Application.Abstract;
 using RecipeBot.Application.Models;
 
-namespace RecipeBot.Application;
+namespace RecipeBot.Infrastructure;
 
 public class UserSessionsStore(IRedisService redisService) : IUserSessionStore
 {
@@ -13,7 +12,10 @@ public class UserSessionsStore(IRedisService redisService) : IUserSessionStore
         {
             return session;
         }
-        return new UserSession();
+
+        var newSession = new UserSession();
+        await redisService.SetAsync(userId.ToString(), newSession);
+        return newSession;
     }
 
     public async Task<UserSession?> TryGetSession(long userId)

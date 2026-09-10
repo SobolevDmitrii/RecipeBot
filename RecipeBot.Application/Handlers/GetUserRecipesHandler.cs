@@ -314,7 +314,6 @@ public class GetUserRecipesHandler(
         userSession.Recipes = recipes;
         await userSessionStore.SetUserSession(chatId, userSession);
 
-        await Task.Delay(new TimeSpan(0, 0, 5, 0));
         return new HandlerResult("Выбери рецепт", null, buttons);
     }
 

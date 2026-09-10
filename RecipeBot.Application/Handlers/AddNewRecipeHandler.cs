@@ -40,22 +40,16 @@ public class AddNewRecipeHandler(
         if (!string.IsNullOrWhiteSpace(request.Text) || !string.IsNullOrWhiteSpace(request.Caption)
                                                      || !string.IsNullOrWhiteSpace(request.ImageFileId))
         {
-            if (userSession != null)
+            return userSession.RecipeState switch
             {
-                switch (userSession.RecipeState)
-                {
-                    case RecipeStates.WaitingForRecipeName:
-                        return await AddNameRecipe(request.Text, chatId, userSession, cancellationToken);
-                    case RecipeStates.WaitingForImageRecipe:
-                        return await AddImageRecipe(request.ImageFileId, chatId, userSession);
-                    case RecipeStates.WaitingForIngredients:
-                        return await AddIngredients(request.Text, chatId, userSession);
-                    case RecipeStates.AddingStage:
-                        return await AddStage(request.Text, request.Caption, request.ImageFileId, chatId, userSession);
-                    default:
-                        throw new InvalidDataException();
-                }
-            }
+                RecipeStates.WaitingForRecipeName => await AddNameRecipe(request.Text, chatId, userSession,
+                    cancellationToken),
+                RecipeStates.WaitingForImageRecipe => await AddImageRecipe(request.ImageFileId, chatId, userSession),
+                RecipeStates.WaitingForIngredients => await AddIngredients(request.Text, chatId, userSession),
+                RecipeStates.AddingStage => await AddStage(request.Text, request.Caption, request.ImageFileId, chatId,
+                    userSession),
+                _ => throw new InvalidDataException()
+            };
         }
 
         if (request.CallbackData != null)
@@ -73,13 +67,11 @@ public class AddNewRecipeHandler(
                         cancellationToken);
             }
 
-            if (userSession != null)
+
+            switch (userSession.RecipeState)
             {
-                switch (userSession.RecipeState)
-                {
-                    case RecipeStates.WaitingForCategory:
-                        return await AddCategory(request.CallbackData, chatId, userSession);
-                }
+                case RecipeStates.WaitingForCategory:
+                    return await AddCategory(request.CallbackData, chatId, userSession);
             }
         }
 
