@@ -4,8 +4,11 @@ using Microsoft.Extensions.Hosting;
 using RecipeBot.Application;
 using RecipeBot.Infrastructure;
 using RecipeBot.Telegram.BackGroundServices;
+var envPath = Path.Combine(
+    Directory.GetCurrentDirectory(),
+    ".env");
 
-Env.Load();
+Env.Load(envPath);
 var builder = Host.CreateApplicationBuilder(args);
 
 // Add services to the container.
