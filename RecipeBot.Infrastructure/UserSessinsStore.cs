@@ -20,9 +20,7 @@ public class UserSessionsStore(IRedisService redisService) : IUserSessionStore
             return session;
         }
 
-        var newSession = new UserSession();
-        await redisService.SetAsync(userId.ToString(), newSession);
-        return newSession;
+        return await AddUserSession(userId);
     }
 
     public async Task<UserSession?> TryGetSession(long userId)
