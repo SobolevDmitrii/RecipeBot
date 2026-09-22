@@ -2,6 +2,8 @@
 
 > Telegram-бот для создания, хранения и просмотра рецептов с пошаговым описанием приготовления и фотографиями.
 
+Текущая версия: **1.2.0** (22 сентября 2026). Изменения релизов — в [CHANGELOG.md](CHANGELOG.md).
+
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet\&logoColor=white)](https://dotnet.microsoft.com/)
 [![C#](https://img.shields.io/badge/C%23-14-239120?logo=csharp\&logoColor=white)](https://learn.microsoft.com/dotnet/csharp/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql\&logoColor=white)](https://www.postgresql.org/)
@@ -33,7 +35,8 @@
 * пагинация;
 * просмотр этапов приготовления;
 * удаление рецептов;
-* хранение пользовательских сессий в Redis.
+* хранение пользовательских сессий в Redis;
+* обнаружение зависшей обработки сессий и уведомление пользователя.
 
 Проект создан в учебных и портфолио-целях.
 
@@ -159,7 +162,7 @@ PostgreSQL
 recipes:page:0
 recipes:page:1
 recipe:view:15
-recipe:stage:2
+recipe:stages:2
 ```
 
 ## 📷 Работа с фотографиями
@@ -351,6 +354,12 @@ Redis
 
 Для Redis используется `StackExchange.Redis` и singleton `IConnectionMultiplexer`.
 
+### Обнаружение зависших сессий
+
+При создании и просмотре рецептов в сессии сохраняются `ChatId` и `CurrentUpdateId`, а в Redis Sorted Set `processing:sessions` — время начала обработки. После успешной обработки Telegram-сервис очищает маркер обновления и удаляет запись из этого набора.
+
+Фоновый `SessionRecoveryService` каждые пять минут проверяет записи старше пяти минут. Если в сессии остался `CurrentUpdateId`, сервис пытается отправить пользователю уведомление с предложением выполнить `/start` или `/cancel`, затем удаляет запись из списка обрабатываемых. Автоматического повторного выполнения прерванного действия нет.
+
 ---
 
 # 🔀 State Machine
@@ -409,9 +418,9 @@ AddingStage
 Примеры:
 
 ```text
-recipe:list:0
+recipes:page:0
 recipe:view:15
-recipe:stage2
+recipe:stages:2
 recipe:delete:15
 recipe:back
 ```
@@ -427,14 +436,14 @@ Parameters
 Например:
 
 ```text
-recipe:stage:2
+recipe:stages:2
 ```
 
 означает:
 
 ```text
 Entity     = recipe
-Action     = stage
+Action     = stages
 StageIndex = 2
 ```
 
@@ -495,8 +504,6 @@ RecipeBot/
 │   ├── Models/
 │   ├── CreateRecipePagination.cs
 │   ├── CreateStagePagination.cs
-│   ├── MessageBaseRequest.cs
-│   ├── UserSessinsStore.cs
 │   └── ApplicationExtension.cs
 │
 ├── RecipeBot.Infrastructure/
@@ -505,15 +512,24 @@ RecipeBot/
 │   ├── Redis/
 │   ├── Repositories/
 │   ├── InfraDataExtensions.cs
+│   ├── UserSessinsStore.cs
 │   └── MyRecipeDbContext.cs
 │
 ├── RecipeBot.Telegram/
 │   ├── BackGroundServices/
-│   │   └── TelegramBotService.cs
+│   │   ├── TelegramBotService.cs
+│   │   └── SessionRecoveryService.cs
 │   ├── Program.cs
 │   ├── Dockerfile
 │   └── appsettings.json
 │
+├── RecipeBot.UnitTests/
+├── RecipeBot.IntegrationTests/
+│   └── Repositories/
+├── redis/
+│   ├── redis.conf
+│   └── users.acl
+├── compose.yml
 ├── .env.example
 ├── .gitignore
 ├── CHANGELOG.md
@@ -539,6 +555,9 @@ RecipeBot/
 | **StackExchange.Redis**      | Работа с Redis                       |
 | **Docker**                   | Контейнеризация                      |
 | **DotNetEnv**                | Загрузка переменных окружения        |
+| **NUnit / Moq / AutoFixture** | Тестирование и подготовка тестовых данных |
+| **Testcontainers**           | PostgreSQL и Redis для интеграционных тестов |
+| **coverlet.collector**       | Сбор покрытия тестов                 |
 
 ---
 
@@ -559,6 +578,7 @@ builder.Services.AddApplication(configuration);
 builder.Services.AddInfra(configuration);
 
 builder.Services.AddHostedService<TelegramBotService>();
+builder.Services.AddHostedService<SessionRecoveryService>();
 
 var app = builder.Build();
 
@@ -577,9 +597,10 @@ Telegram layer регистрирует:
 
 ```text
 TelegramBotService
+SessionRecoveryService
 ```
 
-как `HostedService`.
+как фоновые `HostedService`.
 
 ---
 
@@ -645,6 +666,10 @@ Docker можно использовать для запуска инфраст�
 
 ## Локальный запуск
 
+В корне репозитория создайте `.env` на основе `.env.example` и заполните токен бота и параметры подключения к PostgreSQL и Redis. Приложение загружает `.env` из текущего рабочего каталога, поэтому команды ниже выполняются из корня репозитория.
+
+Запустите PostgreSQL и Redis (см. раздел Docker) до применения миграций.
+
 Восстановить зависимости:
 
 ```bash
@@ -665,8 +690,6 @@ dotnet ef database update \
   --startup-project RecipeBot.Telegram
 ```
 
-Настроить `.env` на основе `.env.example`.
-
 Запустить:
 
 ```bash
@@ -678,6 +701,14 @@ dotnet run --project RecipeBot.Telegram
 ---
 
 # 🐳 Docker
+
+В репозитории есть `compose.yml` для PostgreSQL 18 и Redis 8:
+
+```bash
+docker compose up -d
+```
+
+Порты на хосте: PostgreSQL — `5432`, Redis — `6379`. Параметры PostgreSQL заданы в `compose.yml`, конфигурация Redis и ACL — в `redis/redis.conf` и `redis/users.acl`. Согласуйте с ними значения в `.env`. Compose запускает только инфраструктуру; бота запускайте отдельно.
 
 Для Telegram-приложения используется multi-stage Docker build.
 
@@ -706,12 +737,55 @@ docker build \
 Запуск контейнера:
 
 ```bash
-docker run --rm recipebot
+docker run --rm --env-file .env recipebot
 ```
 
-> В текущей версии репозитория отдельного `compose.yaml` нет, поэтому README не предполагает запуск проекта через `docker compose`.
+Для запуска бота в контейнере укажите в `.env` адреса PostgreSQL и Redis, доступные из контейнера: `localhost` внутри контейнера указывает на сам контейнер. В Docker Desktop для сервисов с опубликованными портами можно использовать `host.docker.internal`.
 
 PostgreSQL и Redis могут запускаться отдельно через Docker или локально.
+
+---
+
+# 🧪 Тестирование
+
+В решении два тестовых проекта:
+
+* `RecipeBot.UnitTests` — модульные тесты обработчиков создания и просмотра рецептов, стартового меню, `TelegramBotService` и `SessionRecoveryService`. Используются NUnit, Moq и AutoFixture; внешние сервисы не нужны.
+* `RecipeBot.IntegrationTests` — интеграционные тесты, проверка репозиториев и пользовательских сценариев с настоящими PostgreSQL и Redis через Testcontainers. Тесты автоматически запускают отдельные контейнеры, применяют миграции PostgreSQL и освобождают контейнеры после выполнения.
+
+Запуск модульных тестов:
+
+```bash
+dotnet test RecipeBot.UnitTests
+```
+
+Для интеграционных тестов нужен запущенный Docker с поддержкой Linux-контейнеров и возможность загрузить образы `postgres:16-alpine` и `redis:7-alpine`. Эти версии заданы в тестах и отличаются от версий в `compose.yml`. Запуск Compose и настройка рабочего `.env` для тестов не требуются.
+
+```bash
+dotnet test RecipeBot.IntegrationTests
+```
+
+Запуск всех тестов со сбором покрытия:
+
+```bash
+dotnet test RecipeBot.sln --collect:"XPlat Code Coverage" --results-directory TestResults
+```
+
+Файлы `coverage.cobertura.xml` сохраняются во вложенных каталогах `TestResults`.
+
+## Покрытие тестами
+
+Результаты замера для версии **1.2.0** по отчёту покрытия:
+
+| Проект | Покрытие |
+| :--- | ---: |
+| `RecipeBot.Application` | 90% |
+| `RecipeBot.Infrastructure` | 80% |
+| `RecipeBot.Telegram` | 76% |
+| `RecipeBot.Domain` | 72% |
+| **Всего по проекту** | **83%** |
+
+Проценты приведены с округлением из отчёта. Таблица отражает сохранённый результат замера и не обновляется автоматически при изменении кода.
 
 ---
 
@@ -747,14 +821,13 @@ PostgreSQL и Redis могут запускаться отдельно чере�
 * просмотр рецептов;
 * просмотр этапов;
 * удаление;
-* Redis-сессии.
+* Redis-сессии;
+* unit-тесты;
+* integration-тесты
 
 Возможные дальнейшие улучшения:
 
 * редактирование существующих рецептов;
-* подтверждение удаления;
-* unit-тесты Application и Domain;
-* integration-тесты PostgreSQL/Redis;
 * централизованная обработка ошибок;
 * structured logging;
 * OpenTelemetry;
