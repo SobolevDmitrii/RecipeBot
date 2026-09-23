@@ -53,7 +53,7 @@ public class RecipeRepository(IDbContextFactory<MyRecipeDbContext> contextFactor
     {
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
         return await context.Recipes
-            .Include(q => q.Stages)
+            .Include(q => q.Stages.OrderBy(stage => stage.Number))
             .Include(q => q.Category)
             .Include(r => r.User)
             .AsNoTracking()

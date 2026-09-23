@@ -1,4 +1,5 @@
 ﻿using AutoFixture;
+using MediatR;
 using Moq;
 using RecipeBot.Application.Abstract;
 using RecipeBot.Application.Models;
@@ -14,6 +15,7 @@ public class SessionRecoveryServiceTests
     private Fixture _fixture = null!;
     private Mock<IRedisService> _redisServiceMock = null!;
     private Mock<ITelegramBotClient> _botClientMock = null!;
+    private Mock<IMediator> _meditorMock = null!;
     private TestableSessionRecoveryService _service = null!;
 
     [SetUp]
@@ -23,10 +25,12 @@ public class SessionRecoveryServiceTests
 
         _redisServiceMock = new Mock<IRedisService>();
         _botClientMock = new Mock<ITelegramBotClient>();
+        _meditorMock =  new Mock<IMediator>();
 
         _service = new TestableSessionRecoveryService(
             _redisServiceMock.Object,
-            _botClientMock.Object);
+            _botClientMock.Object,
+            _meditorMock.Object);
     }
 
     [TearDown]
@@ -155,8 +159,9 @@ public class SessionRecoveryServiceTests
     {
         public TestableSessionRecoveryService(
             IRedisService redisService,
-            ITelegramBotClient botClient)
-            : base(redisService, botClient)
+            ITelegramBotClient botClient,
+            IMediator mediator)
+            : base(redisService, botClient,mediator)
         {
         }
 

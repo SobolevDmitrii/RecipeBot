@@ -1,4 +1,5 @@
 ﻿using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RecipeBot.Application;
@@ -16,7 +17,7 @@ namespace RecipeBot.Telegram.BackGroundServices;
 
 public class TelegramBotService(
     ILogger<TelegramBotService> logger,
-    IMediator mediator,
+    IServiceScopeFactory scopeFactory,
     ITelegramBotClient botClient,
     IUserSessionStore userSessionStore)
     : BackgroundService
@@ -63,74 +64,49 @@ public class TelegramBotService(
         string? imageFileId = null;
         string? callbackData = null;
         string? caption = null;
+        using var factory = scopeFactory.CreateScope();
+        var mediator = factory.ServiceProvider.GetService<IMediator>();
 
-        if (!string.IsNullOrWhiteSpace(update.Message?.Text) || !string.IsNullOrWhiteSpace(update.Message?.Caption) ||
-            update.Message?.Photo != null)
+        try
         {
-            chatId = update.Message.Chat.Id;
-            text = update.Message.Text;
-            caption = update.Message.Caption;
-            if (update.Message.Photo != null && !string.IsNullOrWhiteSpace(update.Message.Photo.Last().FileId))
+            if (!string.IsNullOrWhiteSpace(update.Message?.Text) ||
+                !string.IsNullOrWhiteSpace(update.Message?.Caption) ||
+                update.Message?.Photo != null)
             {
-                imageFileId = update.Message.Photo.Last().FileId;
-            }
+                chatId = update.Message.Chat.Id;
+                text = update.Message.Text;
+                caption = update.Message.Caption;
+                if (update.Message.Photo != null && !string.IsNullOrWhiteSpace(update.Message.Photo.Last().FileId))
+                {
+                    imageFileId = update.Message.Photo.Last().FileId;
+                }
 
-            var userSession = await userSessionStore.TryGetSession(chatId);
-            if (userSession == null)
-            {
-                await mediator.Send(new GetOrCreateUserRequest(chatId, update.Message.From.FirstName),
-                    cancellationToken);
-                userSession = await userSessionStore.AddUserSession(chatId);
-            }
-
-            switch (update.Message?.Text)
-            {
-                case "/start":
-                    userSession.UserState = UserStates.Start;
-                    result = await mediator.Send(new StartMenuRequest(chatId, text, callbackData), cancellationToken);
-                    break;
-                case "/cancel":
-                    userSession.UserState = UserStates.Cansel;
-                    await userSessionStore.SetUserSession(chatId, userSession);
-                    result = await Cancel(chatId, text, callbackData, cancellationToken);
-                    break;
-            }
-
-            switch (userSession.UserState)
-            {
-                case UserStates.Waiting:
-                    await bot.DeleteMessage(chatId, update.Message.MessageId, cancellationToken: cancellationToken);
-                    await bot.SendMessage(
-                        chatId,
-                        "Нажмите на одну из кнопок",
-                        cancellationToken: cancellationToken
-                    );
-                    break;
-                case UserStates.AddingRecipe:
-                    result = await mediator.Send(
-                        new AddNewRecipeRequest(chatId, text, imageFileId, callbackData, caption, update.Id),
+                var userSession = await userSessionStore.TryGetSession(chatId);
+                if (userSession == null)
+                {
+                    await mediator.Send(new GetOrCreateUserRequest(chatId, update.Message.From.FirstName),
                         cancellationToken);
-                    break;
-                case UserStates.GetMyRecipes:
-                    result = await mediator.Send(new GetUserRecipesRequest(chatId, text, callbackData, update.Id),
-                        cancellationToken);
-                    break;
-            }
-        }
-        else if (update.CallbackQuery != null)
-        {
-            var callback = update.CallbackQuery;
-            callbackData = callback.Data;
+                    userSession = await userSessionStore.AddUserSession(chatId);
+                }
 
-            chatId = callback.Message.Chat.Id;
-            var userSession = await userSessionStore.TryGetSession(chatId);
+                switch (update.Message?.Text)
+                {
+                    case "/start":
+                        userSession.UserState = UserStates.Start;
+                        result = await mediator.Send(new StartMenuRequest(chatId, text, callbackData),
+                            cancellationToken);
+                        break;
+                    case "/cancel":
+                        userSession.UserState = UserStates.Cansel;
+                        await userSessionStore.SetUserSession(chatId, userSession);
+                        result = await Cancel(mediator, chatId, text, callbackData, cancellationToken);
+                        break;
+                }
 
-            if (userSession != null)
-            {
                 switch (userSession.UserState)
                 {
                     case UserStates.Waiting:
-
+                        await bot.DeleteMessage(chatId, update.Message.MessageId, cancellationToken: cancellationToken);
                         await bot.SendMessage(
                             chatId,
                             "Нажмите на одну из кнопок",
@@ -148,41 +124,78 @@ public class TelegramBotService(
                         break;
                 }
             }
-
-            var newSession = new UserSession();
-            switch (callbackData)
+            else if (update.CallbackQuery != null)
             {
-                case "add_recipe":
-                    result = new HandlerResult("✏️ Введите наименование рецепта:", null, null);
-                    newSession = new UserSession();
-                    newSession.UserState = UserStates.AddingRecipe;
-                    newSession.RecipeState = RecipeStates.WaitingForRecipeName;
-                    await userSessionStore.SetUserSession(chatId, newSession);
-                    break;
-                case "my_recipe":
-                    newSession = new UserSession();
-                    newSession.UserState = UserStates.GetMyRecipes;
-                    newSession.RecipeState = RecipeStates.ShowRecipeSelectionOptions;
-                    await userSessionStore.SetUserSession(chatId, newSession);
-                    result = await mediator.Send(new GetUserRecipesRequest(chatId, text, callbackData, update.Id),
-                        cancellationToken);
+                var callback = update.CallbackQuery;
+                callbackData = callback.Data;
 
-                    break;
-                case "cancel":
-                    result = await Cancel(chatId, text, callbackData, cancellationToken);
-                    break;
+                chatId = callback.Message.Chat.Id;
+                var userSession = await userSessionStore.TryGetSession(chatId);
+
+                if (userSession != null)
+                {
+                    switch (userSession.UserState)
+                    {
+                        case UserStates.Waiting:
+
+                            await bot.SendMessage(
+                                chatId,
+                                "Нажмите на одну из кнопок",
+                                cancellationToken: cancellationToken
+                            );
+                            break;
+                        case UserStates.AddingRecipe:
+                            result = await mediator.Send(
+                                new AddNewRecipeRequest(chatId, text, imageFileId, callbackData, caption, update.Id),
+                                cancellationToken);
+                            break;
+                        case UserStates.GetMyRecipes:
+                            result = await mediator.Send(
+                                new GetUserRecipesRequest(chatId, text, callbackData, update.Id),
+                                cancellationToken);
+                            break;
+                    }
+                }
+
+                var newSession = new UserSession();
+                switch (callbackData)
+                {
+                    case "add_recipe":
+                        result = new HandlerResult("✏️ Введите наименование рецепта:", null, null);
+                        newSession = new UserSession();
+                        newSession.UserState = UserStates.AddingRecipe;
+                        newSession.RecipeState = RecipeStates.WaitingForRecipeName;
+                        await userSessionStore.SetUserSession(chatId, newSession);
+                        break;
+                    case "my_recipe":
+                        newSession = new UserSession();
+                        newSession.UserState = UserStates.GetMyRecipes;
+                        newSession.RecipeState = RecipeStates.ShowRecipeSelectionOptions;
+                        await userSessionStore.SetUserSession(chatId, newSession);
+                        result = await mediator.Send(new GetUserRecipesRequest(chatId, text, callbackData, update.Id),
+                            cancellationToken);
+
+                        break;
+                    case "cancel":
+                        result = await Cancel(mediator,chatId, text, callbackData, cancellationToken);
+                        break;
+                }
+
+                await bot.AnswerCallbackQuery(
+                    update.CallbackQuery.Id,
+                    cancellationToken: cancellationToken);
+            }
+            else
+            {
+                result = new HandlerResult("⚠️ Вы ещё не ввели текст.", null, null);
             }
 
-            await bot.AnswerCallbackQuery(
-                update.CallbackQuery.Id,
-                cancellationToken: cancellationToken);
+            await SendMessage(bot, chatId, result, update.Id, cancellationToken);
         }
-        else
+        catch (Exception e)
         {
-            result = new HandlerResult("⚠️ Вы ещё не ввели текст.", null, null);
+            await mediator.Send(new ExceptionHandlerRequest(e), cancellationToken);
         }
-
-        await SendMessage(bot, chatId, result, update.Id, cancellationToken);
     }
 
     private async Task SendMessage(ITelegramBotClient bot, long chatId, HandlerResult? result, int updateId,
@@ -214,21 +227,16 @@ public class TelegramBotService(
         await userSessionStore.RemoveProcessing(chatId);
     }
 
-    private async Task<HandlerResult?> Cancel(long chatId, string? text, string? callBack,
+    private async Task<HandlerResult?> Cancel(IMediator mediator, long chatId, string? text, string? callBack,
         CancellationToken cancellationToken)
     {
         return await mediator.Send(new StartMenuRequest(chatId, text, callBack), cancellationToken);
     }
 
-    private Task HandleErrorAsync(ITelegramBotClient bot, Exception exception, CancellationToken ct)
+    private async Task HandleErrorAsync(ITelegramBotClient bot, Exception exception, CancellationToken ct)
     {
-        var errorMessage = exception switch
-        {
-            ApiRequestException apiEx => $"Telegram API Error:\n[{apiEx.ErrorCode}]\n{apiEx.Message}",
-            _ => exception.ToString()
-        };
-
-        logger.LogError(errorMessage);
-        return Task.CompletedTask;
+        using var factory = scopeFactory.CreateScope();
+        var mediator = factory.ServiceProvider.GetService<IMediator>();
+        await mediator.Send(new ExceptionHandlerRequest(exception), ct);
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using AutoFixture;
 using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using RecipeBot.Application.Abstract;
@@ -20,8 +21,9 @@ public class TelegramBotServiceTests
     private Fixture _fixture = null!;
 
     private Mock<ILogger<TelegramBotService>> _loggerMock = null!;
-    private Mock<IMediator> _mediatorMock = null!;
+    private Mock<IServiceScopeFactory> _scopeFactory = null!;
     private Mock<ITelegramBotClient> _botClientMock = null!;
+    private Mock<IMediator> _mediatorMock = null!;
     private Mock<IUserSessionStore> _userSessionStoreMock = null!;
 
     private TelegramBotService _service = null!;
@@ -35,16 +37,26 @@ public class TelegramBotServiceTests
         _fixture = new Fixture();
 
         _loggerMock = new Mock<ILogger<TelegramBotService>>();
-        _mediatorMock = new Mock<IMediator>();
+        _scopeFactory = new Mock<IServiceScopeFactory>();
         _botClientMock = new Mock<ITelegramBotClient>();
+        _mediatorMock = new Mock<IMediator>();
         _userSessionStoreMock = new Mock<IUserSessionStore>();
+
+        var serviceProvider = new Mock<IServiceProvider>();
+        serviceProvider
+            .Setup(x => x.GetService(typeof(IMediator)))
+            .Returns(_mediatorMock.Object);
+
+        var scope = new Mock<IServiceScope>();
+        scope.SetupGet(x => x.ServiceProvider).Returns(serviceProvider.Object);
+        _scopeFactory.Setup(x => x.CreateScope()).Returns(scope.Object);
 
         _chatId = _fixture.Create<long>();
         _updateId = _fixture.Create<int>();
 
         _service = new TelegramBotService(
             _loggerMock.Object,
-            _mediatorMock.Object,
+            _scopeFactory.Object,
             _botClientMock.Object,
             _userSessionStoreMock.Object);
     }
