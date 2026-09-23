@@ -1,0 +1,79 @@
+x-app: &app
+  image: ${RECIPEBOT_IMAGE:-recipebot:local}
+  build:
+    context: .
+    dockerfile: RecipeBot.Telegram/Dockerfile
+
+x-db-environment: &db-environment
+  DOTNET_ENVIRONMENT: Production
+  ConnectionStrings__MyRecipeDb: 'Host=postgres;Port=5432;Database=${POSTGRES_DB:-myrecipedb};Username=${POSTGRES_USER:-myuser};GSS Encryption Mode=Disable'
+  PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+
+services:
+  bot:
+    <<: *app
+    restart: unless-stopped
+    environment:
+      <<: *db-environment
+      TelegramApiToken: ${TelegramApiToken:?Set TelegramApiToken in .env}
+      Redis__ConnectionString: redis:6379,abortConnect=false
+      Redis__User: default
+      Redis__Password: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+      Redis__Database: 0
+    volumes:
+      - bot_logs:/app/logs
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+  migrate:
+    <<: *app
+    command: ['--migrate']
+    restart: 'no'
+    environment: *db-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-myuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-myrecipedb}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  redis:
+    image: redis:8
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+    command: ['sh', '-c', 'exec docker-entrypoint.sh redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"']
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli ping | grep -qx PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+volumes:
+  postgres_data:
+  redis_data:
+  bot_logs:

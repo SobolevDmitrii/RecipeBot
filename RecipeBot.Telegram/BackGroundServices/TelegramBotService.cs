@@ -201,7 +201,11 @@ public class TelegramBotService(
     private async Task SendMessage(ITelegramBotClient bot, long chatId, HandlerResult? result, int updateId,
         CancellationToken cancellationToken)
     {
-        if (result == null) return;
+        if (result == null)
+        {
+            await CloseSession(chatId, updateId);
+            return;
+        }
         if (string.IsNullOrEmpty(result.UrlImage))
         {
             await bot.SendMessage(
@@ -220,6 +224,11 @@ public class TelegramBotService(
                 cancellationToken: cancellationToken);
         }
 
+        await CloseSession(chatId, updateId);
+    }
+
+    private async Task CloseSession(long chatId, int updateId)
+    {
         var session = await userSessionStore.TryGetSession(chatId);
         session.CurrentUpdateId = null;
         session.LastUpdateId = updateId;

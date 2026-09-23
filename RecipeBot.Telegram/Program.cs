@@ -1,5 +1,7 @@
 ﻿using System.Reflection;
 using DotNetEnv;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RecipeBot.Application;
@@ -11,8 +13,20 @@ var envPath = Path.Combine(
     Directory.GetCurrentDirectory(),
     ".env");
 
-Env.Load(envPath);
+if (File.Exists(envPath))
+    Env.NoClobber().Load(envPath);
 var builder = Host.CreateApplicationBuilder(args);
+
+if (args.Contains("--migrate"))
+{
+    var options = new DbContextOptionsBuilder<MyRecipeDbContext>()
+        .UseNpgsql(builder.Configuration.GetConnectionString("MyRecipeDb"))
+        .Options;
+    await using var context = new MyRecipeDbContext(options);
+    await context.Database.MigrateAsync();
+    Console.WriteLine("Database migrations completed.");
+    return;
+}
 
 // Add services to the container.
 var configuration = builder.Configuration;

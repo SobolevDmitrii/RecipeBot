@@ -668,7 +668,7 @@ Docker можно использовать для запуска инфраст�
 
 В корне репозитория создайте `.env` на основе `.env.example` и заполните токен бота и параметры подключения к PostgreSQL и Redis. Приложение загружает `.env` из текущего рабочего каталога, поэтому команды ниже выполняются из корня репозитория.
 
-Запустите PostgreSQL и Redis (см. раздел Docker) до применения миграций.
+Запустите PostgreSQL и Redis с compose.dev.yml (см. раздел Docker) до применения миграций.
 
 Восстановить зависимости:
 
@@ -702,47 +702,72 @@ dotnet run --project RecipeBot.Telegram
 
 # 🐳 Docker
 
-В репозитории есть `compose.yml` для PostgreSQL 18 и Redis 8:
+Compose запускает PostgreSQL 18, Redis 8, отдельный контейнер миграций и бота.
+Бот стартует после успешных миграций и готовности Redis. Для long polling запускайте
+только один экземпляр бота с одним Telegram-токеном.
+
+## Настройка и запуск
+
+Скопируйте `.env.example` в `.env` (существующий `.env` не перезаписывайте).
+Заполните `TelegramApiToken`, `POSTGRES_PASSWORD`, `REDIS_PASSWORD`.
+Для паролей удобно использовать случайные строки из 64 шестнадцатеричных символов.
+`POSTGRES_USER` и `POSTGRES_DB` имеют значения по умолчанию.
+Compose сам задаёт адреса `postgres` и `redis`, независимо от локальных строк подключения.
 
 ```bash
-docker compose up -d
+docker compose up -d --build
+docker compose ps -a
+docker compose logs --tail=100 migrate bot
 ```
 
-Порты на хосте: PostgreSQL — `5432`, Redis — `6379`. Параметры PostgreSQL заданы в `compose.yml`, конфигурация Redis и ACL — в `redis/redis.conf` и `redis/users.acl`. Согласуйте с ними значения в `.env`. Compose запускает только инфраструктуру; бота запускайте отдельно.
+Контейнер `migrate` должен завершиться с кодом 0. Файловые логи Serilog сохраняются
+в volume `bot_logs`, каталог `/app/logs` доступен непривилегированному пользователю.
+Данные PostgreSQL и Redis сохраняются в `postgres_data` и `redis_data`.
+Порты баз данных наружу не публикуются. Старые файлы `redis/redis.conf` и
+`redis/users.acl` больше не используются: пароль Redis берётся из `.env`, пользователь — `default`.
 
-Для Telegram-приложения используется multi-stage Docker build.
+При подключении существующего PostgreSQL volume используйте его прежние имя БД,
+пользователя и пароль: изменение `.env` не меняет пароль уже созданной базы.
+Перед обновлениями сохраняйте резервную копию БД и проверяйте новые миграции.
+`docker compose down` сохраняет данные; добавление `-v` удаляет volumes вместе с данными.
 
-```text
-.NET SDK
-   │
-   ├── Restore
-   ├── Build
-   └── Publish
-        │
-        ▼
-.NET Runtime
-   │
-   ▼
-RecipeBot.Telegram
-```
+## Локальная разработка
 
-Сборка Docker image:
+Для запуска бота через `dotnet run` поднимите только инфраструктуру и опубликуйте
+её порты на localhost:
 
 ```bash
-docker build \
-  -f RecipeBot.Telegram/Dockerfile \
-  -t recipebot .
+docker compose -f compose.yml -f compose.dev.yml up -d postgres redis
 ```
 
-Запуск контейнера:
+Заполните локальные `ConnectionStrings__MyRecipeDb`, `Redis__Password` в `.env`
+теми же паролями. Используйте `Redis__User=default`, адреса `localhost:5432` и
+`localhost:6379`. Затем примените миграции и запустите бота по инструкции выше.
+Остановите контейнер `bot`, если ранее запускали полный Compose, чтобы избежать
+одновременного polling одним токеном.
+
+## Публикация образа в Docker Hub
+
+Замените `YOUR_ACCOUNT` своим Docker Hub namespace, а `1.2.0` — версией релиза:
 
 ```bash
-docker run --rm --env-file .env recipebot
+docker login
+docker build -f RecipeBot.Telegram/Dockerfile -t YOUR_ACCOUNT/recipebot:1.2.0 .
+docker push YOUR_ACCOUNT/recipebot:1.2.0
 ```
 
-Для запуска бота в контейнере укажите в `.env` адреса PostgreSQL и Redis, доступные из контейнера: `localhost` внутри контейнера указывает на сам контейнер. В Docker Desktop для сервисов с опубликованными портами можно использовать `host.docker.internal`.
+На сервер перенесите `compose.yml`, создайте `.env` с секретами и задайте
+`RECIPEBOT_IMAGE=YOUR_ACCOUNT/recipebot:1.2.0`. Исходники и SDK на сервере не нужны:
 
-PostgreSQL и Redis могут запускаться отдельно через Docker или локально.
+```bash
+docker compose pull
+docker compose up -d --no-build
+```
+
+Для обновления измените тег в `.env` и повторите эти команды. Контейнер миграций
+использует тот же образ, что и бот. Сборка по умолчанию предназначена для архитектуры
+машины сборки; для сервера другой архитектуры используйте Docker Buildx.
+Секреты `.env` исключены из Git и контекста сборки; не добавляйте их в образ.
 
 ---
 
