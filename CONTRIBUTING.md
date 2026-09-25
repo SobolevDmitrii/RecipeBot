@@ -20,7 +20,15 @@ git checkout -b feature/my-change
 dotnet build
 ```
 
-5. Если изменение содержит новую логику, по возможности добавьте или обновите тесты.
+5. Если изменение содержит новую логику, добавьте или обновите тесты и запустите соответствующий набор:
+
+```bash
+dotnet test RecipeBot.UnitTests
+dotnet test RecipeBot.IntegrationTests
+```
+
+Модульные тесты не требуют внешних сервисов. Интеграционные тесты используют отдельные PostgreSQL и Redis через Testcontainers: нужен запущенный Docker с Linux-контейнерами. Рабочая БД и `.env` для этих тестов не требуются. Инструкции по локальному запуску, Compose и сбору покрытия находятся в [README.md](README.md).
+
 6. Создайте commit с понятным описанием изменения:
 
 ```bash
@@ -55,6 +63,8 @@ git push origin feature/my-change
 * `RecipeBot.Application` — бизнес-логика и обработчики;
 * `RecipeBot.Infrastructure` — работа с базой данных и реализации репозиториев;
 * `RecipeBot.Telegram` — интеграция с Telegram Bot API и запуск приложения.
+* `RecipeBot.UnitTests` — модульные тесты обработчиков и фоновых сервисов;
+* `RecipeBot.IntegrationTests` — тесты репозиториев и сценариев создания, просмотра и редактирования с PostgreSQL и Redis.
 
 При добавлении новой функциональности следует по возможности сохранять это разделение ответственности.
 

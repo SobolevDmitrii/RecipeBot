@@ -2,7 +2,7 @@
 
 > Telegram-бот для создания, хранения и просмотра рецептов с пошаговым описанием приготовления и фотографиями.
 
-Текущая версия: **1.2.0** (22 сентября 2026). Изменения релизов — в [CHANGELOG.md](CHANGELOG.md).
+Текущая версия: **1.3.0** (25 сентября 2026). Изменения релизов — в [CHANGELOG.md](CHANGELOG.md).
 
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet\&logoColor=white)](https://dotnet.microsoft.com/)
 [![C#](https://img.shields.io/badge/C%23-14-239120?logo=csharp\&logoColor=white)](https://learn.microsoft.com/dotnet/csharp/)
@@ -34,6 +34,7 @@
 * фильтрация по категории;
 * пагинация;
 * просмотр этапов приготовления;
+* редактирование рецептов и этапов с сохранением черновика;
 * удаление рецептов;
 * хранение пользовательских сессий в Redis;
 * обнаружение зависшей обработки сессий и уведомление пользователя.
@@ -132,6 +133,26 @@ PostgreSQL
 Поддерживается поиск рецептов по полному или частичному названию.
 
 После выполнения поиска пользователь получает найденные рецепты с возможностью постраничной навигации.
+
+---
+
+## ✏️ Редактирование рецепта
+
+Выберите сохранённый рецепт в разделе «Мои рецепты» и откройте редактирование.
+
+| Что можно изменить | Доступные действия |
+| :--- | :--- |
+| Название и ингредиенты | Заменить название или список ингредиентов |
+| Категория | Выбрать другую категорию |
+| Фотография блюда | Заменить или удалить |
+| Этапы приготовления | Изменить описание, заменить или удалить фотографию, удалить этап |
+| Новый этап | Вставить в выбранную позицию с автоматическим сдвигом номеров |
+
+Изменения накапливаются в черновике Redis и записываются в PostgreSQL только после нажатия «Сохранить». «Отменить редактирование» оставляет сохранённый рецепт без изменений. Переход назад в меню редактирования сохраняет черновик.
+
+Для вставки этапа отправьте номер первой строкой, а описание — со следующей строки. Можно приложить фотографию и указать эти данные в подписи. После удаления этапа оставшиеся этапы перенумеровываются.
+
+Перед сохранением проверяются название, ингредиенты, наличие хотя бы одного этапа с описанием и доступность категории. Обновление рецепта ограничено владельцем. Если рецепт уже удалён, изменения не записываются, а черновик остаётся в сессии.
 
 ---
 
@@ -250,6 +271,7 @@ recipe.AddStage(stage);
 
 * `AddNewRecipeHandler`;
 * `GetUserRecipesHandler`;
+* `EditRecipeHandler`;
 * `StartMenuHandler`;
 * `GetOrCreateUserHandler`;
 * `UserSession`;
@@ -318,6 +340,8 @@ UserSession
     ├── RecipeState
     ├── RecipeDraft
     ├── CurrentViewRecipe
+    ├── CurrentViewStage
+    ├── ChatId / CurrentUpdateId / LastUpdateId
     └── Recipes
 ```
 
@@ -356,7 +380,7 @@ Redis
 
 ### Обнаружение зависших сессий
 
-При создании и просмотре рецептов в сессии сохраняются `ChatId` и `CurrentUpdateId`, а в Redis Sorted Set `processing:sessions` — время начала обработки. После успешной обработки Telegram-сервис очищает маркер обновления и удаляет запись из этого набора.
+При создании, просмотре и редактировании рецептов в сессии сохраняются `ChatId` и `CurrentUpdateId`, а в Redis Sorted Set `processing:sessions` — время начала обработки. После успешной обработки Telegram-сервис очищает маркер обновления и удаляет запись из этого набора.
 
 Фоновый `SessionRecoveryService` каждые пять минут проверяет записи старше пяти минут. Если в сессии остался `CurrentUpdateId`, сервис пытается отправить пользователю уведомление с предложением выполнить `/start` или `/cancel`, затем удаляет запись из списка обрабатываемых. Автоматического повторного выполнения прерванного действия нет.
 
@@ -423,6 +447,11 @@ recipe:view:15
 recipe:stages:2
 recipe:delete:15
 recipe:back
+recipe:edit:15
+edit:name
+edit:stages
+edit:save
+edit:cancel
 ```
 
 Структура callback позволяет определить:
@@ -500,10 +529,12 @@ RecipeBot/
 ├── RecipeBot.Application/
 │   ├── Abstract/
 │   ├── Handlers/
+│   ├── Helpers/
+│   │   ├── CreateButtonCategory.cs
+│   │   ├── CreateRecipePagination.cs
+│   │   └── CreateStagePagination.cs
 │   ├── Mappers/
 │   ├── Models/
-│   ├── CreateRecipePagination.cs
-│   ├── CreateStagePagination.cs
 │   └── ApplicationExtension.cs
 │
 ├── RecipeBot.Infrastructure/
@@ -520,8 +551,12 @@ RecipeBot/
 │   │   ├── TelegramBotService.cs
 │   │   └── SessionRecoveryService.cs
 │   ├── Program.cs
+│   ├── ExceptionHandler.cs
 │   ├── Dockerfile
-│   └── appsettings.json
+│   ├── appsettings.json
+│   ├── appsettings.Development.json
+│   ├── appsettings.Testing.json
+│   └── appsettings.Production.json
 │
 ├── RecipeBot.UnitTests/
 ├── RecipeBot.IntegrationTests/
@@ -530,6 +565,8 @@ RecipeBot/
 │   ├── redis.conf
 │   └── users.acl
 ├── compose.yml
+├── compose.dev.yml
+├── .dockerignore
 ├── .env.example
 ├── .gitignore
 ├── CHANGELOG.md
@@ -555,6 +592,7 @@ RecipeBot/
 | **StackExchange.Redis**      | Работа с Redis                       |
 | **Docker**                   | Контейнеризация                      |
 | **DotNetEnv**                | Загрузка переменных окружения        |
+| **Serilog**                  | Файловые логи и контекст окружения   |
 | **NUnit / Moq / AutoFixture** | Тестирование и подготовка тестовых данных |
 | **Testcontainers**           | PostgreSQL и Redis для интеграционных тестов |
 | **coverlet.collector**       | Сбор покрытия тестов                 |
@@ -565,11 +603,9 @@ RecipeBot/
 
 Регистрация зависимостей разделена по слоям.
 
-`Program.cs`:
+Основные регистрации в `Program.cs` (сокращённый пример):
 
 ```csharp
-Env.Load();
-
 var builder = Host.CreateApplicationBuilder(args);
 
 var configuration = builder.Configuration;
@@ -579,6 +615,8 @@ builder.Services.AddInfra(configuration);
 
 builder.Services.AddHostedService<TelegramBotService>();
 builder.Services.AddHostedService<SessionRecoveryService>();
+builder.Services.AddMediatR(cfg =>
+    cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
 
 var app = builder.Build();
 
@@ -602,6 +640,20 @@ SessionRecoveryService
 
 как фоновые `HostedService`.
 
+## Логирование и обработка ошибок
+
+Ошибки обработки обновлений, polling и проверки зависших сессий передаются через MediatR в `ExceptionHandler`. Он записывает исключения Telegram API, EF Core/PostgreSQL, Redis и прочие ошибки через `ILogger`.
+
+Serilog читает настройки из `appsettings.json` и файла выбранного окружения, добавляя свойство `Environment`. Базовая конфигурация включает ежедневную ротацию файлов, ограничение размера 10 МБ и хранение до 30 файлов.
+
+| `DOTNET_ENVIRONMENT` | Файл настроек | Путь логов | Минимальный уровень файлового лога |
+| :--- | :--- | :--- | :--- |
+| `Development` | `appsettings.Development.json` | `logs/dev-.log` | Debug |
+| `Testing` | `appsettings.Testing.json` | `logs/test-.log` | Information |
+| `Production` | `appsettings.Production.json` | `logs/prod-.log` | Error |
+
+В Compose используется `Production`, логи сохраняются в volume `bot_logs`.
+
 ---
 
 # ⚙️ Конфигурация
@@ -614,6 +666,7 @@ SessionRecoveryService
 
 ```env
 TelegramApiToken=
+DOTNET_ENVIRONMENT=Development
 
 ConnectionStrings__MyRecipeDb=
 
@@ -623,6 +676,10 @@ Redis__Password=
 Redis__Database=
 ```
 
+Для полного запуска Compose дополнительно используются `POSTGRES_USER`, `POSTGRES_DB`, `POSTGRES_PASSWORD`, `REDIS_PASSWORD` и необязательный `RECIPEBOT_IMAGE`. Локальные `Redis__Password` и пароль в строке подключения должны соответствовать паролям инфраструктуры.
+
+`.env` загружается из текущего каталога, если файл существует. `Env.NoClobber()` сохраняет приоритет уже заданных переменных окружения. Параметр `DOTNET_ENVIRONMENT` выбирает файл настроек окружения.
+
 > Реальный `.env` не должен попадать в Git-репозиторий.
 
 Для Docker и production рекомендуется использовать environment variables или Docker Secrets / внешний менеджер секретов.
@@ -630,6 +687,14 @@ Redis__Database=
 ---
 
 # 🗄 Миграции
+
+Применить миграции встроенным режимом приложения без запуска бота:
+
+```bash
+dotnet run --project RecipeBot.Telegram -- --migrate
+```
+
+Этот режим использует подключение PostgreSQL и завершает процесс после применения миграций. В Compose его запускает отдельный сервис `migrate`.
 
 Применить существующие миграции:
 
@@ -748,16 +813,16 @@ docker compose -f compose.yml -f compose.dev.yml up -d postgres redis
 
 ## Публикация образа в Docker Hub
 
-Замените `YOUR_ACCOUNT` своим Docker Hub namespace, а `1.2.0` — версией релиза:
+Замените `YOUR_ACCOUNT` своим Docker Hub namespace, а `1.3.0` — версией релиза:
 
 ```bash
 docker login
-docker build -f RecipeBot.Telegram/Dockerfile -t YOUR_ACCOUNT/recipebot:1.2.0 .
-docker push YOUR_ACCOUNT/recipebot:1.2.0
+docker build -f RecipeBot.Telegram/Dockerfile -t YOUR_ACCOUNT/recipebot:1.3.0 .
+docker push YOUR_ACCOUNT/recipebot:1.3.0
 ```
 
 На сервер перенесите `compose.yml`, создайте `.env` с секретами и задайте
-`RECIPEBOT_IMAGE=YOUR_ACCOUNT/recipebot:1.2.0`. Исходники и SDK на сервере не нужны:
+`RECIPEBOT_IMAGE=YOUR_ACCOUNT/recipebot:1.3.0`. Исходники и SDK на сервере не нужны:
 
 ```bash
 docker compose pull
@@ -775,8 +840,10 @@ docker compose up -d --no-build
 
 В решении два тестовых проекта:
 
-* `RecipeBot.UnitTests` — модульные тесты обработчиков создания и просмотра рецептов, стартового меню, `TelegramBotService` и `SessionRecoveryService`. Используются NUnit, Moq и AutoFixture; внешние сервисы не нужны.
+* `RecipeBot.UnitTests` — модульные тесты обработчиков создания, просмотра и редактирования рецептов, стартового меню, `TelegramBotService` и `SessionRecoveryService`. Используются NUnit, Moq и AutoFixture; внешние сервисы не нужны.
 * `RecipeBot.IntegrationTests` — интеграционные тесты, проверка репозиториев и пользовательских сценариев с настоящими PostgreSQL и Redis через Testcontainers. Тесты автоматически запускают отдельные контейнеры, применяют миграции PostgreSQL и освобождают контейнеры после выполнения.
+
+Редактирование проверяется от изменения черновика до сохранения в БД: изменение полей и этапов, вставка и удаление этапов, удаление фотографий, отмена, недоступная категория или рецепт и запрет изменения чужого рецепта.
 
 Запуск модульных тестов:
 
@@ -800,15 +867,15 @@ dotnet test RecipeBot.sln --collect:"XPlat Code Coverage" --results-directory Te
 
 ## Покрытие тестами
 
-Результаты замера для версии **1.2.0** по отчёту покрытия:
+Результаты замера для версии **1.3.0** по предоставленному отчёту от 25 сентября 2026:
 
 | Проект | Покрытие |
 | :--- | ---: |
-| `RecipeBot.Application` | 90% |
-| `RecipeBot.Infrastructure` | 80% |
-| `RecipeBot.Telegram` | 76% |
-| `RecipeBot.Domain` | 72% |
-| **Всего по проекту** | **83%** |
+| `RecipeBot.Application` | 93% |
+| `RecipeBot.Infrastructure` | 82% |
+| `RecipeBot.Domain` | 74% |
+| `RecipeBot.Telegram` | 64% |
+| **Всего по проекту** | **84%** |
 
 Проценты приведены с округлением из отчёта. Таблица отражает сохранённый результат замера и не обновляется автоматически при изменении кода.
 
@@ -848,15 +915,16 @@ dotnet test RecipeBot.sln --collect:"XPlat Code Coverage" --results-directory Te
 * удаление;
 * Redis-сессии;
 * unit-тесты;
-* integration-тесты
+* integration-тесты;
+* редактирование рецептов и этапов;
+* централизованное логирование ошибок;
+* файловые логи Serilog;
+* запуск бота и миграций через Compose с проверками готовности PostgreSQL и Redis.
 
 Возможные дальнейшие улучшения:
 
-* редактирование существующих рецептов;
-* централизованная обработка ошибок;
-* structured logging;
 * OpenTelemetry;
-* health checks;
+* health checks приложения;
 * CI/CD;
 * production deployment;
 
