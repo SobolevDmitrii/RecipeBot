@@ -37,11 +37,14 @@
       <PackageReference Include="Serilog.Settings.Configuration" Version="10.0.1" />
       <PackageReference Include="Serilog.Sinks.File" Version="8.0.0-nblumhardt-02322" />
       <PackageReference Include="StackExchange.Redis" Version="3.1.31" />
-    </ItemGroup><ItemGroup>
-    <None Include="../.env"
-          Link=".env"
-          CopyToOutputDirectory="PreserveNewest" />
-</ItemGroup>
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="../.env" Condition="Exists('../.env')"
+              Link=".env"
+              CopyToOutputDirectory="PreserveNewest"
+              CopyToPublishDirectory="Never" />
+    </ItemGroup>
 
     
 
