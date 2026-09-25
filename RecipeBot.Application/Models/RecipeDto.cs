@@ -2,7 +2,7 @@
 
 public class RecipeDto
 {
-    public long Id { get; set; }
+    public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? UrlImage { get; set; }
     public int CategoryId { get; set; }

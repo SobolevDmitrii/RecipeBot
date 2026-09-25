@@ -31,6 +31,10 @@ public class Stage
         UrlImage = urlImage;
     }
 
+    public void RemoveUrlImage()
+    {
+        UrlImage = null;
+    }
     public void SetRecipe(int recipeId)
     {
         if (recipeId < 1)

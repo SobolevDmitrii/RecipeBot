@@ -1,5 +1,6 @@
 ﻿using MediatR;
 using RecipeBot.Application.Abstract;
+using RecipeBot.Application.Helpers;
 using RecipeBot.Application.Mappers.Extensions;
 using RecipeBot.Application.Models;
 using RecipeBot.Domain.Abstract.IRepositories;
@@ -30,13 +31,21 @@ public class AddNewRecipeHandler(
         var userSession = await userSessionStore.TryGetSession(request.ChatId);
 
         if (userSession == null)
-            return new HandlerResult("Произошла непредвиденная ошибка, повторите снова", null, null);
+            return new HandlerResult("Сессия истекла. Отправьте /start и выберите рецепт снова.", null, null);
 
         userSession.ChatId = chatId;
         userSession.CurrentUpdateId = request.UpdateId;
         await userSessionStore.AddProcessing(chatId);
         await userSessionStore.SetUserSession(chatId, userSession);
 
+        return await HandleAdd(request, userSession, cancellationToken);
+    }
+
+    private async Task<HandlerResult> HandleAdd(
+        AddNewRecipeRequest request, UserSession userSession, CancellationToken cancellationToken)
+    {
+        var chatId = request.ChatId;
+        
         if (!string.IsNullOrWhiteSpace(request.Text) || !string.IsNullOrWhiteSpace(request.Caption)
                                                      || !string.IsNullOrWhiteSpace(request.ImageFileId))
         {
@@ -105,16 +114,16 @@ public class AddNewRecipeHandler(
         var recipe = new Recipe();
         recipe.SetName(text);
         userSession.RecipeDraft = recipe.ToDto();
-        var categories = await categoryRepository.GetAllCategories(cancellationToken);
-        var buttons = new List<InlineKeyboardButton>();
+        var categories = (await categoryRepository.GetAllCategories(cancellationToken)).ToDto();
+        var buttons = CreateButtonCategory.CreateButtonCategories(categories);/*new List<InlineKeyboardButton>();
         foreach (var category in categories)
         {
             buttons.Add(InlineKeyboardButton.WithCallbackData($"{category.Name}", $"{category.Id}"));
-        }
+        }*/
 
         userSession.RecipeState = RecipeStates.WaitingForCategory;
         await userSessionStore.SetUserSession(chatId, userSession);
-        return new HandlerResult("✅ Выберите категорию.", null, new InlineKeyboardMarkup(buttons));
+        return new HandlerResult("✅ Выберите категорию.", null, buttons);
     }
 
     private async Task<HandlerResult?> AddCategory(string callBack, long chatId, UserSession userSession)

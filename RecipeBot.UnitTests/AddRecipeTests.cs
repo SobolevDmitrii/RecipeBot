@@ -77,7 +77,7 @@ public class AddRecipeTests
 
         Assert.That(
             result!.Message,
-            Is.EqualTo("Произошла непредвиденная ошибка, повторите снова"));
+            Is.EqualTo("Сессия истекла. Отправьте /start и выберите рецепт снова."));
 
         _userSessionStoreMock.Verify(
             x => x.AddProcessing(It.IsAny<long>()),

@@ -96,7 +96,7 @@ public class GetUserRecipesIntegrationTests : RepositoryTestBase
         Assert.That(saved!.Recipes, Is.Not.Null);
         Assert.Multiple(() =>
         {
-            Assert.That(saved.RecipeState, Is.EqualTo(RecipeStates.ShowRecipces));
+            Assert.That(saved.RecipeState, Is.EqualTo(RecipeStates.ShowRecipes));
             Assert.That(saved.CurrentUpdateId, Is.EqualTo(updateId));
             Assert.That(saved.Recipes!.Select(r => (r.Id, r.Name)),
                 Is.EquivalentTo(expected.Select(r => (r.Id, r.Name))));

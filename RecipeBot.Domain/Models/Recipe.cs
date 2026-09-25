@@ -29,6 +29,11 @@ public class Recipe
 
         UrlImage = urlImage;
     }
+    
+    public void RemoveUrlImage()
+    {
+       UrlImage = null;
+    }
 
     public void SetIngredients(string ingredients)
     {

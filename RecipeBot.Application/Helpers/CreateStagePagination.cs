@@ -1,8 +1,7 @@
 ﻿using RecipeBot.Application.Models;
-using RecipeBot.Domain.Models;
 using Telegram.Bot.Types.ReplyMarkups;
 
-namespace RecipeBot.Application;
+namespace RecipeBot.Application.Helpers;
 
 public class CreateStagePagination
 {

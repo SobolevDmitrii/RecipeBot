@@ -218,7 +218,7 @@ public class TelegramBotServiceTests
             x => x.SetUserSession(
                 _chatId,
                 session),
-            Times.Once);
+            Times.Exactly(2));
 
         _mediatorMock.Verify(
             x => x.Send(
@@ -340,8 +340,12 @@ public class TelegramBotServiceTests
     public async Task MyRecipesCallback(bool hasSession)
     {
         // Arrange
+        UserSession? session = hasSession ? new UserSession { UserState = UserStates.Start } : null;
         _userSessionStoreMock.Setup(x => x.TryGetSession(_chatId))
-            .ReturnsAsync(hasSession ? new UserSession { UserState = UserStates.Start } : null);
+            .ReturnsAsync(() => session);
+        _userSessionStoreMock.Setup(x => x.SetUserSession(_chatId, It.IsAny<UserSession>()))
+            .Callback<long, UserSession>((_, value) => session = value)
+            .Returns(Task.CompletedTask);
         _mediatorMock.Setup(x => x.Send(It.IsAny<GetUserRecipesRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((HandlerResult?)null);
         var update = CreateCallbackUpdate("my_recipe");
@@ -352,7 +356,7 @@ public class TelegramBotServiceTests
         // Assert
         _userSessionStoreMock.Verify(x => x.SetUserSession(_chatId,
             It.Is<UserSession>(session => session.UserState == UserStates.GetMyRecipes &&
-                session.RecipeState == RecipeStates.ShowRecipeSelectionOptions)), Times.Once);
+                session.RecipeState == RecipeStates.ShowRecipeSelectionOptions)), Times.Exactly(2));
         _mediatorMock.Verify(x => x.Send(
             It.Is<GetUserRecipesRequest>(request => request.ChatId == _chatId &&
                 request.text == null && request.CallbackData == "my_recipe" && request.UpdateId == _updateId),
@@ -366,9 +370,11 @@ public class TelegramBotServiceTests
     public async Task CancelCallback(bool hasSession)
     {
         // Arrange
+        UserSession? session = hasSession ? new UserSession { UserState = UserStates.Start } : null;
         _userSessionStoreMock.Setup(x => x.TryGetSession(_chatId))
-            .ReturnsAsync(hasSession ? new UserSession { UserState = UserStates.Start } : null);
+            .ReturnsAsync(() => session);
         _mediatorMock.Setup(x => x.Send(It.IsAny<StartMenuRequest>(), It.IsAny<CancellationToken>()))
+            .Callback(() => session ??= new UserSession { UserState = UserStates.Start })
             .ReturnsAsync((HandlerResult?)null);
         var update = CreateCallbackUpdate("cancel");
 

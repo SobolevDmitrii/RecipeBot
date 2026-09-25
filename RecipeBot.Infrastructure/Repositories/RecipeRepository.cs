@@ -17,6 +17,52 @@ public class RecipeRepository(IDbContextFactory<MyRecipeDbContext> contextFactor
         return recipe;
     }
 
+    public async Task<Recipe> Update(Recipe updatedRecipe, long chatId, int id,
+        CancellationToken cancellationToken)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
+        var recipe = await context.Recipes
+            .Include(r => r.Stages)
+            .SingleOrDefaultAsync(r => r.Id == id && r.User.TelegramId == chatId, cancellationToken)
+            ?? throw new KeyNotFoundException("Recipe not found");
+
+        recipe.SetName(updatedRecipe.Name);
+        recipe.SetIngredients(updatedRecipe.Ingredients);
+        recipe.SetCategoryId(updatedRecipe.CategoryId);
+        if (!string.IsNullOrWhiteSpace(updatedRecipe.UrlImage))
+        {
+            recipe.SetUrlImage(updatedRecipe.UrlImage);
+        }
+        else
+        {
+            recipe.RemoveUrlImage();
+        }
+
+        var stages = updatedRecipe.Stages.OrderBy(stage => stage.Number).Select((source, index) =>
+        {
+            var stage = new Stage();
+            stage.SetNumber(source.Number);
+            stage.SetDescription(source.Description);
+            if (!string.IsNullOrWhiteSpace(source.UrlImage))
+            {
+                stage.SetUrlImage(source.UrlImage);
+            }
+            else
+            {
+                stage.RemoveUrlImage();
+            }
+                
+            return stage;
+        }).ToList();
+
+        context.Stages.RemoveRange(recipe.Stages);
+        recipe.Stages.Clear();
+        recipe.AddRangeStage(stages);
+
+        await context.SaveChangesAsync(cancellationToken);
+        return recipe;
+    }
+
     public async Task<List<Recipe>> GetListByTelegramId(long chatId, CancellationToken cancellationToken)
     {
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);

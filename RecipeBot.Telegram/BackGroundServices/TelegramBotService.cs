@@ -102,7 +102,7 @@ public class TelegramBotService(
                         result = await Cancel(mediator, chatId, text, callbackData, cancellationToken);
                         break;
                 }
-
+                
                 switch (userSession.UserState)
                 {
                     case UserStates.Waiting:
@@ -122,17 +122,33 @@ public class TelegramBotService(
                         result = await mediator.Send(new GetUserRecipesRequest(chatId, text, callbackData, update.Id),
                             cancellationToken);
                         break;
+                    case UserStates.EditRecipe:
+                        result = await mediator.Send(
+                            new EditRecipeRequest(chatId, text, imageFileId, callbackData, caption, update.Id),
+                            cancellationToken);
+                        break;
                 }
             }
             else if (update.CallbackQuery != null)
             {
+                
+                var newSession = new UserSession();
                 var callback = update.CallbackQuery;
                 callbackData = callback.Data;
 
                 chatId = callback.Message.Chat.Id;
                 var userSession = await userSessionStore.TryGetSession(chatId);
 
-                if (userSession != null)
+                if (callbackData.StartsWith("recipe:edit:"))
+                {
+                    newSession = new UserSession();
+                    newSession.UserState = UserStates.EditRecipe;
+                    newSession.RecipeState = RecipeStates.GetMenuEdit;
+                    await userSessionStore.SetUserSession(chatId, newSession);
+                    result = await mediator.Send(
+                        new EditRecipeRequest(chatId, text, imageFileId, callbackData, caption, update.Id),
+                        cancellationToken);
+                } else if (userSession != null)
                 {
                     switch (userSession.UserState)
                     {
@@ -154,10 +170,15 @@ public class TelegramBotService(
                                 new GetUserRecipesRequest(chatId, text, callbackData, update.Id),
                                 cancellationToken);
                             break;
+                        case UserStates.EditRecipe:
+                            result = await mediator.Send(
+                                new EditRecipeRequest(chatId, text, imageFileId, callbackData, caption, update.Id),
+                                cancellationToken);
+                            break;
                     }
                 }
 
-                var newSession = new UserSession();
+               
                 switch (callbackData)
                 {
                     case "add_recipe":

@@ -6,5 +6,6 @@ public enum UserStates
     Start,
     Cansel,
     AddingRecipe,
-    GetMyRecipes
+    GetMyRecipes,
+    EditRecipe,
 }

@@ -11,6 +11,7 @@ public class UserSession
 
     public RecipeDto? RecipeDraft { get; set; }
     public RecipeDto? CurrentViewRecipe { get; set; }
+    public StageDto? CurrentViewStage { get; set; }
 
     public List<RecipeDto>? Recipes  { get; set; }
     

@@ -39,7 +39,7 @@ public class GetRecipeTests
         _userSession = new UserSession();
 
         _userSessionStoreMock
-            .Setup(x => x.GetOrAddUserSession(_chatId))
+            .Setup(x => x.TryGetSession(_chatId))
             .ReturnsAsync(_userSession);
 
         _handler = new GetUserRecipesHandler(
@@ -119,7 +119,7 @@ public class GetRecipeTests
 
             Assert.That(
                 _userSession.RecipeState,
-                Is.EqualTo(RecipeStates.ShowRecipces));
+                Is.EqualTo(RecipeStates.ShowRecipes));
 
             Assert.That(
                 _userSession.Recipes,
@@ -224,7 +224,7 @@ public class GetRecipeTests
 
             Assert.That(
                 _userSession.RecipeState,
-                Is.EqualTo(RecipeStates.ShowRecipces));
+                Is.EqualTo(RecipeStates.ShowRecipes));
 
             Assert.That(
                 _userSession.Recipes,
@@ -306,7 +306,7 @@ public class GetRecipeTests
 
             Assert.That(
                 _userSession.RecipeState,
-                Is.EqualTo(RecipeStates.ShowRecipces));
+                Is.EqualTo(RecipeStates.ShowRecipes));
 
             Assert.That(
                 _userSession.Recipes,
@@ -326,7 +326,7 @@ public class GetRecipeTests
     {
         // Arrange
         _userSession.RecipeState =
-            RecipeStates.ShowRecipces;
+            RecipeStates.ShowRecipes;
 
         _userSession.Recipes =
             Enumerable
@@ -375,7 +375,7 @@ public class GetRecipeTests
         var recipeId = CreatePositiveInt();
 
         _userSession.RecipeState =
-            RecipeStates.ShowRecipces;
+            RecipeStates.ShowRecipes;
 
         var request = CreateRequest(
             callbackData: $"recipe:{recipeId}");
@@ -409,7 +409,7 @@ public class GetRecipeTests
     {
         // Arrange
         _userSession.RecipeState =
-            RecipeStates.ShowRecipces;
+            RecipeStates.ShowRecipes;
 
         var request = CreateRequest(
             callbackData: "recipe:not-number");

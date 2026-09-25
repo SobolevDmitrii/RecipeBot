@@ -1,5 +1,6 @@
 ﻿using MediatR;
 using RecipeBot.Application.Abstract;
+using RecipeBot.Application.Helpers;
 using RecipeBot.Application.Mappers.Extensions;
 using RecipeBot.Application.Models;
 using RecipeBot.Domain.Abstract.IRepositories;
@@ -22,20 +23,28 @@ public class GetUserRecipesHandler(
     public async Task<HandlerResult?> Handle(GetUserRecipesRequest request, CancellationToken cancellationToken)
     {
         var chatId = request.ChatId;
-        var userSession = await userSessionStore.GetOrAddUserSession(request.ChatId);
-        if (userSession == null)
-            return new HandlerResult("Произошла непредвиденная ошибка, повторите снова", null, null);
+        var session = await userSessionStore.TryGetSession(request.ChatId);
+        if (session == null)
+            return new HandlerResult("Сессия истекла. Отправьте /start и выберите рецепт снова.", null, null);
         
-        userSession.ChatId = chatId;
-        userSession.CurrentUpdateId = request.UpdateId;
+        session.ChatId = chatId;
+        session.CurrentUpdateId = request.UpdateId;
         await userSessionStore.AddProcessing(chatId);
-        await userSessionStore.SetUserSession(chatId, userSession);
+        await userSessionStore.SetUserSession(chatId, session);
 
+        var result = await HandleAdd(request, session, cancellationToken);
+        await userSessionStore.SetUserSession(request.ChatId, session);
+        return result;
+    }
+    
+    public async Task<HandlerResult?> HandleAdd(GetUserRecipesRequest request, UserSession userSession, CancellationToken cancellationToken)
+    {
+        var chatId = request.ChatId;
         switch (userSession.RecipeState)
         {
             case RecipeStates.ShowRecipeSelectionOptions:
                 return await ShowRecipeSelectionOptions(chatId,userSession);
-            case RecipeStates.ShowRecipces:
+            case RecipeStates.ShowRecipes:
                 return await HandleRecipeSelection(
                     chatId,
                     request.CallbackData,
@@ -184,7 +193,7 @@ public class GetUserRecipesHandler(
             recipes,
             page: 0,
             5);
-        userSession.RecipeState = RecipeStates.ShowRecipces;
+        userSession.RecipeState = RecipeStates.ShowRecipes;
         userSession.Recipes = recipes;
         await userSessionStore.SetUserSession(chatId, userSession);
         return new HandlerResult("Выбери рецепт", null, buttons);
@@ -201,7 +210,7 @@ public class GetUserRecipesHandler(
             recipes,
             page: 0,
             5);
-        userSession.RecipeState = RecipeStates.ShowRecipces;
+        userSession.RecipeState = RecipeStates.ShowRecipes;
         userSession.Recipes = recipes;
         await userSessionStore.SetUserSession(chatId, userSession);
         return new HandlerResult("Выбери рецепт", null, buttons);
@@ -284,6 +293,10 @@ public class GetUserRecipesHandler(
                 InlineKeyboardButton.WithCallbackData(
                     "👁️ Просмотреть",
                     $"recipe:view:{recipeId}"),
+                
+                InlineKeyboardButton.WithCallbackData(
+                    "✏️ Редактировать",
+                    $"recipe:edit:{recipeId}"),
 
                 InlineKeyboardButton.WithCallbackData(
                     "🗑️ Удалить",
@@ -310,7 +323,7 @@ public class GetUserRecipesHandler(
             recipes,
             page: 0,
             5);
-        userSession.RecipeState = RecipeStates.ShowRecipces;
+        userSession.RecipeState = RecipeStates.ShowRecipes;
         userSession.Recipes = recipes;
         await userSessionStore.SetUserSession(chatId, userSession);
 
@@ -339,4 +352,6 @@ public class GetUserRecipesHandler(
         await userSessionStore.SetUserSession(chatId, userSession);
         return new HandlerResult("✅ Выберите один из вариантов.", null, new InlineKeyboardMarkup(buttons));
     }
+
+   
 }
