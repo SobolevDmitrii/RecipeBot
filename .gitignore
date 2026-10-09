@@ -27,3 +27,6 @@ Thumbs.db
 /Redis/
 
 **/logs/
+
+# Local deployment bundles contain database backups and secrets.
+/artifacts/
